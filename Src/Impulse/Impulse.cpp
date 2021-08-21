@@ -33,10 +33,12 @@ auto ImpulseApp::CreateGraphicsResources () -> HRESULT
 
         hr = CreateBrushes();
         hr = CreateFonts();
+        hr = CreateButtons();
         if (FAILED(hr))
         {
             return hr;
         }
+
         
         CalculateLayout();
 
@@ -59,9 +61,31 @@ auto ImpulseApp::CreateBrushes () -> HRESULT
     auto hr = S_OK;
 
     const auto backgroundColor = D2D1::ColorF(1.0f, 1.0f, 0.0f);
-    const auto circleColor     = D2D1::ColorF(1.0f, 1.0f, 0.0f);
 
+    const auto buttonDefaultTextColor     = D2D1::ColorF(0.5f, 0.0f, 0.0f);
+    const auto buttonDefaultOutlineColor  = D2D1::ColorF(0.5f, 0.0f, 0.0f);
+    const auto buttonHoverTextColor       = D2D1::ColorF(0.7f, 0.7f, 0.0f);
+    const auto buttonHoverOutlineColor    = D2D1::ColorF(0.7f, 0.7f, 0.0f);
+    const auto buttonActiveTextColor      = D2D1::ColorF(0.9f, 0.9f, 0.9f);
+    const auto buttonActiveOutlineColor   = D2D1::ColorF(0.9f, 0.9f, 0.9f);
+    const auto buttonFocusTextColor       = D2D1::ColorF(0.5f, 0.0f, 0.0f);
+    const auto buttonFocusOutlineColor    = D2D1::ColorF(0.5f, 0.0f, 0.0f);
+    const auto buttonDisabledTextColor    = D2D1::ColorF(0.2f, 0.2f, 0.2f);
+    const auto buttonDisabledOutlineColor = D2D1::ColorF(0.2f, 0.2f, 0.2f);
+    
     hr = mRenderTarget->CreateSolidColorBrush(backgroundColor, mBackgroundBrush.GetAddressOf());
+
+    hr = mRenderTarget->CreateSolidColorBrush(buttonDefaultTextColor    , mDefaultTextBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonDefaultOutlineColor , mDefaultOutlineBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonHoverTextColor      , mHoverTextBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonHoverOutlineColor   , mHoverOutlineBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonActiveTextColor     , mActiveTextBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonActiveOutlineColor  , mActiveOutlineBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonFocusTextColor      , mFocusTextBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonFocusOutlineColor   , mFocusOutlineBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonDisabledTextColor   , mDisabledTextBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(buttonDisabledOutlineColor, mDisabledOutlineBrush.GetAddressOf());
+
     if (FAILED(hr))
     {
         spdlog::error("CreateSolidColorBrush() failed: {}", HResultToString(hr));
@@ -98,16 +122,57 @@ auto ImpulseApp::CreateFonts () -> HRESULT
             DWRITE_FONT_STRETCH_NORMAL,
             16,
             L"", //locale
-            mTextFormat.GetAddressOf()
+            mButtonTextFormat.GetAddressOf()
         );
         if (FAILED(hr))
         {
             spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
             return hr;
         }
+
+        mButtonTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        mButtonTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
         spdlog::debug("Successfully created Button Font");
     }
     
+    return S_OK;
+}
+
+auto ImpulseApp::CreateButtons () -> HRESULT
+{
+    const auto rt           = mRenderTarget->GetSize();
+    const auto buttonWidth  = 32.0f;
+    const auto buttonHeight = buttonWidth;
+    const auto padding      = 5.0f;
+    const auto buttonSize   = D2D1::SizeF(buttonWidth, buttonHeight);
+
+    auto create = [&](const wchar_t* text, D2D1_POINT_2F position, D2D1_SIZE_F size)
+    {
+        return Button::Create(
+            text,
+            position,
+            size,
+            mButtonTextFormat,
+            mDefaultTextBrush,
+            mDefaultOutlineBrush,
+            mHoverTextBrush,
+            mHoverOutlineBrush,
+            mActiveTextBrush,
+            mActiveOutlineBrush,
+            mFocusTextBrush,
+            mFocusOutlineBrush,
+            mDisabledTextBrush,
+            mDisabledOutlineBrush
+        );
+    };
+
+    mSettingsButton = create(L"O", D2D1::Point2F(padding, padding), buttonSize);
+    mCloseButton = create(L"X", D2D1::Point2F(rt.width - buttonWidth - padding, padding), buttonSize);
+    mPauseButton = create(L"||", D2D1::Point2F(padding, rt.height - buttonHeight - padding), buttonSize);
+
+    mSettingsButton->OnClick = [&]{ MessageBoxW(mWindowHandle, L"Hello", L"Test", MB_OK); };
+
     return S_OK;
 }
 
@@ -117,6 +182,39 @@ auto ImpulseApp::CalculateLayout () -> void
     {
     }
 }
+
+#pragma endregion
+
+#pragma region "Drawing"
+
+////////////////////////////////////////////////////////////////////////////////
+
+auto ImpulseApp::DrawButtons () -> void
+{
+    mCloseButton->Draw(mRenderTarget);
+    mSettingsButton->Draw(mRenderTarget);
+    mPauseButton->Draw(mRenderTarget);
+}
+
+auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
+{
+    if (mCloseButton->HitTest(point))
+    {
+        return mCloseButton.get();
+    }
+    if (mSettingsButton->HitTest(point))
+    {
+        return mSettingsButton.get();
+    }
+    if (mPauseButton->HitTest(point))
+    {
+        return mPauseButton.get();
+    }
+    
+    return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 #pragma endregion
 
@@ -166,6 +264,8 @@ auto ImpulseApp::OnPaint (WPARAM wParam, LPARAM lParam) -> LRESULT
         mRenderTarget->BeginDraw();
         mRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::SkyBlue));
 
+        DrawButtons();
+
         hr = mRenderTarget->EndDraw();
         if (FAILED(hr) || hr == D2DERR_RECREATE_TARGET)
         {
@@ -190,6 +290,83 @@ auto ImpulseApp::OnResize (WPARAM wParam, LPARAM lParam) -> LRESULT
 
         CalculateLayout();
         InvalidateRect(mWindowHandle, nullptr, false);
+    }
+
+    return 0;
+}
+
+auto ImpulseApp::OnMouseMove (int x, int y, DWORD flags) -> LRESULT
+{
+    const auto point = D2D1::Point2F(x, y);
+
+    auto widget = HitTest(point);
+    if (widget)
+    {
+        if (widget == mClickedWidget)
+        {
+            if (widget->Update(Widget::State::Active))
+            {
+                Redraw();
+            }
+        }
+        else
+        {
+            if (widget->Update(Widget::State::Hover))
+            {
+                Redraw();
+            }
+        }
+        mHoveredWidget = widget;
+    }
+    else
+    {
+        if (mHoveredWidget)
+        {
+            if (mHoveredWidget->Update(Widget::State::Default))
+            {
+                Redraw();
+            }
+            mHoveredWidget = nullptr;
+        }
+    }
+
+    return 0;
+}
+
+auto ImpulseApp::OnLeftMouseButtonUp (int x, int y, DWORD flags) -> LRESULT 
+{
+    const auto point = D2D1::Point2F(x, y);
+
+    auto widget = HitTest(point);
+    if (widget)
+    {
+        if (widget == mClickedWidget)
+        {
+            widget->OnClick();
+        }
+
+        if (widget->Update(Widget::State::Hover))
+        {
+            Redraw();
+        }
+
+    }
+    
+    mClickedWidget = nullptr;
+    
+    return 0;
+}
+
+auto ImpulseApp::OnLeftMouseButtonDown (int x, int y, DWORD flags) -> LRESULT 
+{
+    auto widget = HitTest(D2D1::Point2F(x, y));
+    if (widget)
+    {
+        mClickedWidget = widget;
+        if (widget->Update(Widget::State::Active))
+        {
+            Redraw();
+        }
     }
 
     return 0;

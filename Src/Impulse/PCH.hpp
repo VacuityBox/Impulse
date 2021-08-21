@@ -1,5 +1,12 @@
 #pragma once
 
+/// Standard library
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
 /// Windows libraries
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
