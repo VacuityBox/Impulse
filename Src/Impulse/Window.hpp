@@ -14,6 +14,7 @@ class Window
 protected:
     HWND      mWindowHandle;
     HINSTANCE mInstanceHandle;
+    UINT_PTR  mTimerId;
 
 private:
     virtual auto ClassName () const -> const wchar_t* = 0;
@@ -34,6 +35,8 @@ private:
     virtual auto OnLeftMouseButtonDown  (int, int, DWORD) -> LRESULT = 0;
     virtual auto OnRightMouseButtonUp   (int, int, DWORD) -> LRESULT = 0;
     virtual auto OnRightMouseButtonDown (int, int, DWORD) -> LRESULT = 0;
+
+    virtual auto OnTimer () -> LRESULT = 0;
 
     // Override to handle custom messages.
     virtual auto CustomDispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT = 0;

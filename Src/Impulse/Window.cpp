@@ -22,6 +22,7 @@ auto Window::Dispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
     case WM_SIZE:    return OnResize(wParam, lParam);
     case WM_KEYUP:   return OnKeyUp(static_cast<UINT>(wParam));
     case WM_KEYDOWN: return OnKeyDown(static_cast<UINT>(wParam));
+    case WM_TIMER:   return OnTimer();
     
     case WM_MOUSEMOVE:
         return OnMouseMove(
@@ -165,11 +166,19 @@ auto Window::InternalCreate (
         return false;
     }
 
+    mTimerId = SetTimer(mWindowHandle, 0, 1000, nullptr);
+    if (!mTimerId)
+    {
+        spdlog::error("SetTimer() failed: {}", GetLastErrorMessage());
+        return false;
+    }
+
     return true;
 }
 
 auto Window::InternalCleanup () -> void
 {
+    KillTimer(mWindowHandle, mTimerId);
     UnregisterClassW(ClassName(), mInstanceHandle);
 }
 

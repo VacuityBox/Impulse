@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Button.hpp"
+#include "Timer.hpp"
 #include "Window.hpp"
 
 #define WIN32_LEAN_AND_MEAN
@@ -28,6 +29,7 @@ class ImpulseApp : public Window
     ComPtr<IDWriteFactory>        mDWriteFactory;
     
     ComPtr<IDWriteTextFormat>     mButtonTextFormat;
+    ComPtr<IDWriteTextFormat>     mTimerTextFormat;
 
     ComPtr<ID2D1SolidColorBrush>  mBackgroundBrush;
     ComPtr<ID2D1SolidColorBrush>  mDefaultTextBrush;
@@ -41,9 +43,16 @@ class ImpulseApp : public Window
     ComPtr<ID2D1SolidColorBrush>  mDisabledTextBrush;
     ComPtr<ID2D1SolidColorBrush>  mDisabledOutlineBrush;
 
+    ComPtr<ID2D1SolidColorBrush>  mTimerTextBrush;
+    ComPtr<ID2D1SolidColorBrush>  mTimerOuterBrush;
+    ComPtr<ID2D1SolidColorBrush>  mTimerOuterOutlineBrush;
+    ComPtr<ID2D1SolidColorBrush>  mTimerInnerBrush;
+    ComPtr<ID2D1SolidColorBrush>  mTimerInnerOutlineBrush;
+
     std::unique_ptr<Button>       mCloseButton;
     std::unique_ptr<Button>       mSettingsButton;
     std::unique_ptr<Button>       mPauseButton;
+    std::unique_ptr<Timer>        mTimer;
 
     Widget*                       mClickedWidget;
     Widget*                       mHoveredWidget;
@@ -55,11 +64,13 @@ class ImpulseApp : public Window
     auto CreateBrushes  () -> HRESULT;
     auto CreateFonts    () -> HRESULT;
     auto CreateButtons  () -> HRESULT;
+    auto CreateTimer    () -> HRESULT;
 
     auto CalculateLayout () -> void;
 
     // Draw methods.
     auto DrawButtons () -> void;
+    auto DrawTimer   () -> void;
 
     auto Redraw () -> void { InvalidateRect(mWindowHandle, nullptr, false); }
 
@@ -81,6 +92,8 @@ class ImpulseApp : public Window
     virtual auto OnLeftMouseButtonDown  (int, int, DWORD) -> LRESULT override;
     virtual auto OnRightMouseButtonUp   (int, int, DWORD) -> LRESULT override { return 0; }
     virtual auto OnRightMouseButtonDown (int, int, DWORD) -> LRESULT override { return 0; }
+
+    virtual auto OnTimer () -> LRESULT override;
 
     virtual auto CustomDispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT override;
 

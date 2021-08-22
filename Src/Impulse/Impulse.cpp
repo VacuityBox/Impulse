@@ -34,12 +34,12 @@ auto ImpulseApp::CreateGraphicsResources () -> HRESULT
         hr = CreateBrushes();
         hr = CreateFonts();
         hr = CreateButtons();
+        hr = CreateTimer();
         if (FAILED(hr))
         {
             return hr;
         }
 
-        
         CalculateLayout();
 
         spdlog::debug("Successfully created Graphics Resources");
@@ -60,17 +60,17 @@ auto ImpulseApp::CreateBrushes () -> HRESULT
 {
     auto hr = S_OK;
 
-    const auto backgroundColor = D2D1::ColorF(1.0f, 1.0f, 0.0f);
+    const auto backgroundColor = D2D1::ColorF(1.0f, 1.0f, 1.0f);
 
-    const auto buttonDefaultTextColor     = D2D1::ColorF(0.5f, 0.0f, 0.0f);
-    const auto buttonDefaultOutlineColor  = D2D1::ColorF(0.5f, 0.0f, 0.0f);
-    const auto buttonHoverTextColor       = D2D1::ColorF(0.7f, 0.7f, 0.0f);
-    const auto buttonHoverOutlineColor    = D2D1::ColorF(0.7f, 0.7f, 0.0f);
-    const auto buttonActiveTextColor      = D2D1::ColorF(0.9f, 0.9f, 0.9f);
-    const auto buttonActiveOutlineColor   = D2D1::ColorF(0.9f, 0.9f, 0.9f);
-    const auto buttonFocusTextColor       = D2D1::ColorF(0.5f, 0.0f, 0.0f);
+    const auto buttonDefaultTextColor     = D2D1::ColorF(D2D1::ColorF::Black);
+    const auto buttonDefaultOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
+    const auto buttonHoverTextColor       = D2D1::ColorF(D2D1::ColorF::Black);
+    const auto buttonHoverOutlineColor    = D2D1::ColorF(0.8f, 0.0f, 0.0f);
+    const auto buttonActiveTextColor      = D2D1::ColorF(D2D1::ColorF::Black);
+    const auto buttonActiveOutlineColor   = D2D1::ColorF(0.40f, 0.63f, 1.0f);
+    const auto buttonFocusTextColor       = D2D1::ColorF(D2D1::ColorF::Black);
     const auto buttonFocusOutlineColor    = D2D1::ColorF(0.5f, 0.0f, 0.0f);
-    const auto buttonDisabledTextColor    = D2D1::ColorF(0.2f, 0.2f, 0.2f);
+    const auto buttonDisabledTextColor    = D2D1::ColorF(D2D1::ColorF::Black);
     const auto buttonDisabledOutlineColor = D2D1::ColorF(0.2f, 0.2f, 0.2f);
     
     hr = mRenderTarget->CreateSolidColorBrush(backgroundColor, mBackgroundBrush.GetAddressOf());
@@ -85,6 +85,18 @@ auto ImpulseApp::CreateBrushes () -> HRESULT
     hr = mRenderTarget->CreateSolidColorBrush(buttonFocusOutlineColor   , mFocusOutlineBrush.GetAddressOf());
     hr = mRenderTarget->CreateSolidColorBrush(buttonDisabledTextColor   , mDisabledTextBrush.GetAddressOf());
     hr = mRenderTarget->CreateSolidColorBrush(buttonDisabledOutlineColor, mDisabledOutlineBrush.GetAddressOf());
+
+    const auto timerTextColor         = D2D1::ColorF(D2D1::ColorF::Black);
+    const auto timerOuterColor        = D2D1::ColorF(0.40f, 0.63f, 1.0f);
+    const auto timerOuterOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
+    const auto timerInnerColor        = D2D1::ColorF(0.68f, 0.81f, 1.0f);
+    const auto timerInnerOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
+
+    hr = mRenderTarget->CreateSolidColorBrush(timerTextColor        , mTimerTextBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(timerOuterColor       , mTimerOuterBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(timerOuterOutlineColor, mTimerOuterOutlineBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(timerInnerColor       , mTimerInnerBrush.GetAddressOf());
+    hr = mRenderTarget->CreateSolidColorBrush(timerInnerOutlineColor, mTimerInnerOutlineBrush.GetAddressOf());
 
     if (FAILED(hr))
     {
@@ -111,7 +123,7 @@ auto ImpulseApp::CreateFonts () -> HRESULT
         spdlog::debug("Successfully created DWriteFactory");
     }
 
-    // Create a DirectWrite text format object.
+    // Create Button text format object.
     {
         spdlog::debug("Creating Button Font");
         hr = mDWriteFactory->CreateTextFormat(
@@ -134,6 +146,31 @@ auto ImpulseApp::CreateFonts () -> HRESULT
         mButtonTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
         spdlog::debug("Successfully created Button Font");
+    }
+
+    // Create Timer text format object.
+    {
+        spdlog::debug("Creating Timer Font");
+        hr = mDWriteFactory->CreateTextFormat(
+            L"SegoeUI",
+            NULL,
+            DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            48,
+            L"", //locale
+            mTimerTextFormat.GetAddressOf()
+        );
+        if (FAILED(hr))
+        {
+            spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+            return hr;
+        }
+
+        mTimerTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        mTimerTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+        spdlog::debug("Successfully created Timer Font");
     }
     
     return S_OK;
@@ -176,6 +213,30 @@ auto ImpulseApp::CreateButtons () -> HRESULT
     return S_OK;
 }
 
+auto ImpulseApp::CreateTimer () -> HRESULT
+{
+    const auto rt      = mRenderTarget->GetSize();
+    const auto padding = 10.0f;
+    const auto radius  = (std::min(rt.width, rt.height) / 2) - padding;
+
+    mTimer = Timer::Create(
+        D2D1::Point2F(rt.width/2, rt.height/2),
+        radius,
+        radius - 25.0f,
+        mTimerTextFormat,
+        mTimerTextBrush,
+        mTimerOuterBrush,
+        mTimerOuterOutlineBrush,
+        mTimerInnerBrush,
+        mTimerInnerOutlineBrush
+    );
+
+    mTimer->Duration(25 * 60);
+    mTimer->Start();
+
+    return S_OK;
+}
+
 auto ImpulseApp::CalculateLayout () -> void
 {
     if (mRenderTarget)
@@ -195,6 +256,19 @@ auto ImpulseApp::DrawButtons () -> void
     mSettingsButton->Draw(mRenderTarget);
     mPauseButton->Draw(mRenderTarget);
 }
+
+auto ImpulseApp::DrawTimer () -> void
+{
+    mTimer->Draw(mRenderTarget);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#pragma endregion
+
+#pragma region "HitTest"
+
+////////////////////////////////////////////////////////////////////////////////
 
 auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
 {
@@ -262,9 +336,10 @@ auto ImpulseApp::OnPaint (WPARAM wParam, LPARAM lParam) -> LRESULT
         BeginPaint(mWindowHandle, &ps);
      
         mRenderTarget->BeginDraw();
-        mRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::SkyBlue));
+        mRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
 
         DrawButtons();
+        DrawTimer();
 
         hr = mRenderTarget->EndDraw();
         if (FAILED(hr) || hr == D2DERR_RECREATE_TARGET)
@@ -367,6 +442,17 @@ auto ImpulseApp::OnLeftMouseButtonDown (int x, int y, DWORD flags) -> LRESULT
         {
             Redraw();
         }
+    }
+
+    return 0;
+}
+
+auto ImpulseApp::OnTimer () -> LRESULT
+{
+    if (mTimer->Running())
+    {
+        mTimer->Tick();
+        Redraw();
     }
 
     return 0;
