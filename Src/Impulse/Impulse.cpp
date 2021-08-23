@@ -35,6 +35,7 @@ auto ImpulseApp::CreateGraphicsResources () -> HRESULT
         hr = CreateFonts();
         hr = CreateButtons();
         hr = CreateTimer();
+        hr = CreateStaticText();
         if (FAILED(hr))
         {
             return hr;
@@ -111,18 +112,6 @@ auto ImpulseApp::CreateFonts () -> HRESULT
 {
     auto hr = S_OK;
 
-    // Create DWriteFactory.
-    {
-        spdlog::debug("Creating DWriteFactory");
-        hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(mDWriteFactory), reinterpret_cast<IUnknown**>(mDWriteFactory.GetAddressOf()));
-        if (FAILED(hr))
-        {
-            spdlog::error("DWriteCreateFactory() failed: {}", HResultToString(hr));
-            return hr;
-        }
-        spdlog::debug("Successfully created DWriteFactory");
-    }
-
     // Create Button text format object.
     {
         spdlog::debug("Creating Button Font");
@@ -172,6 +161,45 @@ auto ImpulseApp::CreateFonts () -> HRESULT
 
         spdlog::debug("Successfully created Timer Font");
     }
+
+    // Create Statics format object.
+    {
+        spdlog::debug("Creating Static Texts Font");
+        hr = mDWriteFactory->CreateTextFormat(
+            L"SegoeUI",
+            NULL,
+            DWRITE_FONT_WEIGHT_BOLD,
+            DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            24,
+            L"", //locale
+            mStateTextFormat.GetAddressOf()
+        );
+        hr = mDWriteFactory->CreateTextFormat(
+            L"SegoeUI",
+            NULL,
+            DWRITE_FONT_WEIGHT_BOLD,
+            DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            20,
+            L"", //locale
+            mTaskTextFormat.GetAddressOf()
+        );
+
+        if (FAILED(hr))
+        {
+            spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+            return hr;
+        }
+
+        mStateTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        mStateTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+        mTaskTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        mTaskTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+        spdlog::debug("Successfully created Static Texts Font");
+    }
     
     return S_OK;
 }
@@ -216,7 +244,7 @@ auto ImpulseApp::CreateButtons () -> HRESULT
 auto ImpulseApp::CreateTimer () -> HRESULT
 {
     const auto rt      = mRenderTarget->GetSize();
-    const auto padding = 10.0f;
+    const auto padding = 45.0f;
     const auto radius  = (std::min(rt.width, rt.height) / 2) - padding;
 
     mTimer = Timer::Create(
@@ -235,6 +263,33 @@ auto ImpulseApp::CreateTimer () -> HRESULT
     mTimer->Start();
 
     return S_OK;
+}
+
+auto ImpulseApp::CreateStaticText () -> HRESULT
+{
+    auto hr = S_OK;
+
+    const auto rt = mRenderTarget->GetSize();
+    
+    {
+        const auto position = D2D1::Point2F(42.0f, 5.0f);
+        const auto size     = D2D1::SizeF((rt.width - 42.0f) - position.x, 32.0f - position.y);
+
+        mStaticImpulseState = StaticText::Create(
+            L"Work Time", position, size, mStateTextFormat, mDefaultTextBrush
+        );
+    }
+
+    {
+        const auto position = D2D1::Point2F(42.0f, rt.height - 32.0f);
+        const auto size     = D2D1::SizeF((rt.width - 42.0f) - position.x, rt.height - 5.0f - position.y);
+
+        mStaticCurrentTask = StaticText::Create(
+            L"Create Impulse Program", position, size, mTaskTextFormat, mDefaultTextBrush
+        );
+    }
+
+    return 0;
 }
 
 auto ImpulseApp::CalculateLayout () -> void
@@ -260,6 +315,12 @@ auto ImpulseApp::DrawButtons () -> void
 auto ImpulseApp::DrawTimer () -> void
 {
     mTimer->Draw(mRenderTarget);
+}
+
+auto ImpulseApp::DrawStaticTexts () -> void
+{
+    mStaticImpulseState->Draw(mRenderTarget);
+    mStaticCurrentTask->Draw(mRenderTarget);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -298,22 +359,45 @@ auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
 
 auto ImpulseApp::OnCreate () -> LRESULT
 {
-    spdlog::debug("Creating D2D1 Factory");
-
-#if !defined(_DEBUG)
-    const auto options = D2D1_FACTORY_OPTIONS{ };
-#else
-    const auto options = D2D1_FACTORY_OPTIONS{ D2D1_DEBUG_LEVEL_INFORMATION };
-#endif
-
-    auto hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, mD2DFactory.GetAddressOf());
-    if (FAILED(hr))
+    // Create D2D1 Factory.
     {
-        spdlog::error("D2D1CreateFactory() failed: {}", HResultToString(hr));
-        return -1;  // fail CreateWindowEx()
+        spdlog::debug("Creating D2D1 Factory");
+
+    #if !defined(_DEBUG)
+        const auto options = D2D1_FACTORY_OPTIONS{ };
+    #else
+        const auto options = D2D1_FACTORY_OPTIONS{ D2D1_DEBUG_LEVEL_INFORMATION };
+    #endif
+
+        auto hr = D2D1CreateFactory(
+            D2D1_FACTORY_TYPE_SINGLE_THREADED,
+            options,
+            mD2DFactory.GetAddressOf()
+        );
+        if (FAILED(hr))
+        {
+            spdlog::error("D2D1CreateFactory() failed: {}", HResultToString(hr));
+            return -1;  // fail CreateWindowEx()
+        }
+
+        spdlog::debug("Successfully created D2D Factory");
     }
 
-    spdlog::debug("Successfully created D2D Factory");
+    // Create DWriteFactory.
+    {
+        spdlog::debug("Creating DWriteFactory");
+        auto hr = DWriteCreateFactory(
+            DWRITE_FACTORY_TYPE_SHARED,
+            __uuidof(mDWriteFactory),
+            reinterpret_cast<IUnknown**>(mDWriteFactory.GetAddressOf())
+        );
+        if (FAILED(hr))
+        {
+            spdlog::error("DWriteCreateFactory() failed: {}", HResultToString(hr));
+            return -1;  // fail CreateWindowEx()
+        }
+        spdlog::debug("Successfully created DWriteFactory");
+    }
 
     return 0;
 }
@@ -340,6 +424,7 @@ auto ImpulseApp::OnPaint (WPARAM wParam, LPARAM lParam) -> LRESULT
 
         DrawButtons();
         DrawTimer();
+        DrawStaticTexts();
 
         hr = mRenderTarget->EndDraw();
         if (FAILED(hr) || hr == D2DERR_RECREATE_TARGET)
@@ -476,8 +561,8 @@ auto ImpulseApp::Init (HINSTANCE hInstance) -> bool
     spdlog::info("Initializing Impulse");
 
     // Calculate start position.
-    const auto width  = 400;
-    const auto height = 280;
+    const auto width  = 450;
+    const auto height = 330;
     const auto padding = 20;
     
     auto monitor = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Button.hpp"
+#include "StaticText.hpp"
 #include "Timer.hpp"
 #include "Window.hpp"
 
@@ -30,6 +31,8 @@ class ImpulseApp : public Window
     
     ComPtr<IDWriteTextFormat>     mButtonTextFormat;
     ComPtr<IDWriteTextFormat>     mTimerTextFormat;
+    ComPtr<IDWriteTextFormat>     mStateTextFormat;
+    ComPtr<IDWriteTextFormat>     mTaskTextFormat;
 
     ComPtr<ID2D1SolidColorBrush>  mBackgroundBrush;
     ComPtr<ID2D1SolidColorBrush>  mDefaultTextBrush;
@@ -53,6 +56,8 @@ class ImpulseApp : public Window
     std::unique_ptr<Button>       mSettingsButton;
     std::unique_ptr<Button>       mPauseButton;
     std::unique_ptr<Timer>        mTimer;
+    std::unique_ptr<StaticText>   mStaticImpulseState;
+    std::unique_ptr<StaticText>   mStaticCurrentTask;
 
     Widget*                       mClickedWidget;
     Widget*                       mHoveredWidget;
@@ -61,16 +66,18 @@ class ImpulseApp : public Window
     auto CreateGraphicsResources  () -> HRESULT;
     auto DiscardGraphicsResources () -> void;
 
-    auto CreateBrushes  () -> HRESULT;
-    auto CreateFonts    () -> HRESULT;
-    auto CreateButtons  () -> HRESULT;
-    auto CreateTimer    () -> HRESULT;
+    auto CreateBrushes    () -> HRESULT;
+    auto CreateFonts      () -> HRESULT;
+    auto CreateButtons    () -> HRESULT;
+    auto CreateTimer      () -> HRESULT;
+    auto CreateStaticText () -> HRESULT;
 
     auto CalculateLayout () -> void;
 
     // Draw methods.
-    auto DrawButtons () -> void;
-    auto DrawTimer   () -> void;
+    auto DrawButtons     () -> void;
+    auto DrawTimer       () -> void;
+    auto DrawStaticTexts () -> void;
 
     auto Redraw () -> void { InvalidateRect(mWindowHandle, nullptr, false); }
 
