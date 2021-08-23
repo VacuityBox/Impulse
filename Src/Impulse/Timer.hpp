@@ -1,11 +1,9 @@
 #pragma once
 
-#include "Utility.hpp"
+#include "StaticText.hpp"
 #include "Widget.hpp"
 
-#include <functional>
 #include <memory>
-#include <spdlog/spdlog.h>
 #include <string>
 
 #include <d2d1.h>
@@ -21,19 +19,47 @@ namespace Impulse {
 
 class Timer : public Widget
 {
-    D2D1_POINT_2F mCenter      = D2D1_POINT_2F{0};
-    float         mOuterRadius = float{0};
-    float         mInnerRadius = float{0};
-    uint64_t      mDuration    = 0;               // in seconds
+public:
+    struct Desc
+    {
+        D2D1_POINT_2F    center             = D2D1::Point2F();
+        float            outerRadius        = 0.0f;
+        float            innerRadius        = 0.0f;
+        uint64_t         duration           = 0;                // in seconds
+        float            outerStroke        = 1.0f;
+        float            innerStroke        = 1.0f;
+        
+        D2D1_COLOR_F     outerCircleColor   = D2D1::ColorF(D2D1::ColorF::Black);
+        D2D1_COLOR_F     outerOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
+        D2D1_COLOR_F     innerCircleColor   = D2D1::ColorF(D2D1::ColorF::Black);
+        D2D1_COLOR_F     innerOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
+        
+        StaticText::Desc timerTextDesc      = StaticText::Desc();
+        StaticText::Desc topTextDesc        = StaticText::Desc();
+        StaticText::Desc bottomTextDesc     = StaticText::Desc();
+    };
+
+private:
+    D2D1_POINT_2F mCenter      = D2D1::Point2F();
+    float         mOuterRadius = 0.0f;
+    float         mInnerRadius = 0.0f;
+    float         mOuterStroke = 1.0f;
+    float         mInnerStroke = 1.0f;
+    uint64_t      mDuration    = 0;                // in seconds
     bool          mPaused      = true;
 
-    ComPtr<IDWriteTextFormat>    mTextFormat;
+    ComPtr<IDWriteTextFormat>    mTimerTextFormat;
+    ComPtr<IDWriteTextFormat>    mTopTextFormat;
+    ComPtr<IDWriteTextFormat>    mBottomTextFormat;
 
-    ComPtr<ID2D1SolidColorBrush> mTextBrush;
-    ComPtr<ID2D1SolidColorBrush> mOuterBrush;
+    ComPtr<ID2D1SolidColorBrush> mOuterCircleBrush;
     ComPtr<ID2D1SolidColorBrush> mOuterOutlineBrush;
-    ComPtr<ID2D1SolidColorBrush> mInnerBrush;
+    ComPtr<ID2D1SolidColorBrush> mInnerCircleBrush;
     ComPtr<ID2D1SolidColorBrush> mInnerOutlineBrush;
+
+    std::unique_ptr<StaticText>  mStaticTimer;
+    std::unique_ptr<StaticText>  mStaticTop;
+    std::unique_ptr<StaticText>  mStaticBottom;
 
 public:
     std::function<void ()> OnTimeout = []{};
@@ -49,7 +75,6 @@ public:
     auto OuterRadius (float r)           { mOuterRadius = r; }
     auto InnerRadius (float r)           { mInnerRadius = r; }
 
-    const auto State () const { return mState; }
     const auto Rect  () const
     {
         return D2D1::RectF(
@@ -63,9 +88,8 @@ public:
     const auto OuterEllipse () const { return D2D1::Ellipse(mCenter, mOuterRadius, mOuterRadius); }
     const auto InnerEllipse () const { return D2D1::Ellipse(mCenter, mInnerRadius, mInnerRadius); }
 
-    virtual auto HitTest (D2D_POINT_2F point)  -> bool override;
-    virtual auto Update  (Widget::State state) -> bool override;
-    virtual auto Draw    (ComPtr<ID2D1RenderTarget> pRenderTarget) -> void override;
+    virtual auto HitTest (D2D_POINT_2F point)               -> bool override;    
+    virtual auto Draw    (ID2D1RenderTarget* pRenderTarget) -> void override;
 
     auto Tick ()
     {
@@ -84,15 +108,9 @@ public:
     auto Paused  () { return mPaused; }
 
     static auto Create (
-        D2D_POINT_2F                 center,
-        float                        outerRadius,
-        float                        innerRadius,
-        ComPtr<IDWriteTextFormat>    pDWriteTextFormat,
-        ComPtr<ID2D1SolidColorBrush> mTextBrush,
-        ComPtr<ID2D1SolidColorBrush> mOuterBrush,
-        ComPtr<ID2D1SolidColorBrush> mOuterOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> mInnerBrush,
-        ComPtr<ID2D1SolidColorBrush> mInnerOutlineBrush
+        const Timer::Desc& desc,
+        ID2D1RenderTarget* pRenderTarget,
+        IDWriteFactory*    pDWriteFactory
     ) -> std::unique_ptr<Timer>;
 };
 

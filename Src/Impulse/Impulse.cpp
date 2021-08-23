@@ -5,7 +5,7 @@
 
 namespace Impulse {
 
-#pragma region "Creating Resources"
+#pragma region "Creating/Discard Resources"
 
 auto ImpulseApp::CreateGraphicsResources () -> HRESULT
 {
@@ -31,8 +31,6 @@ auto ImpulseApp::CreateGraphicsResources () -> HRESULT
         }
         spdlog::debug("Successfully created RenderTarget");
 
-        hr = CreateBrushes();
-        hr = CreateFonts();
         hr = CreateButtons();
         hr = CreateTimer();
         hr = CreateStaticText();
@@ -53,243 +51,7 @@ auto ImpulseApp::DiscardGraphicsResources () -> void
 {
     spdlog::debug("Discarding Graphics Resources");
 
-    mRenderTarget.Reset();
-    mBackgroundBrush.Reset();    
-}
-
-auto ImpulseApp::CreateBrushes () -> HRESULT
-{
-    auto hr = S_OK;
-
-    const auto backgroundColor = D2D1::ColorF(1.0f, 1.0f, 1.0f);
-
-    const auto buttonDefaultTextColor     = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto buttonDefaultOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto buttonHoverTextColor       = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto buttonHoverOutlineColor    = D2D1::ColorF(0.8f, 0.0f, 0.0f);
-    const auto buttonActiveTextColor      = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto buttonActiveOutlineColor   = D2D1::ColorF(0.40f, 0.63f, 1.0f);
-    const auto buttonFocusTextColor       = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto buttonFocusOutlineColor    = D2D1::ColorF(0.5f, 0.0f, 0.0f);
-    const auto buttonDisabledTextColor    = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto buttonDisabledOutlineColor = D2D1::ColorF(0.2f, 0.2f, 0.2f);
-    
-    hr = mRenderTarget->CreateSolidColorBrush(backgroundColor, mBackgroundBrush.GetAddressOf());
-
-    hr = mRenderTarget->CreateSolidColorBrush(buttonDefaultTextColor    , mDefaultTextBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonDefaultOutlineColor , mDefaultOutlineBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonHoverTextColor      , mHoverTextBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonHoverOutlineColor   , mHoverOutlineBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonActiveTextColor     , mActiveTextBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonActiveOutlineColor  , mActiveOutlineBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonFocusTextColor      , mFocusTextBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonFocusOutlineColor   , mFocusOutlineBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonDisabledTextColor   , mDisabledTextBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(buttonDisabledOutlineColor, mDisabledOutlineBrush.GetAddressOf());
-
-    const auto timerTextColor         = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto timerOuterColor        = D2D1::ColorF(0.40f, 0.63f, 1.0f);
-    const auto timerOuterOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
-    const auto timerInnerColor        = D2D1::ColorF(0.68f, 0.81f, 1.0f);
-    const auto timerInnerOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
-
-    hr = mRenderTarget->CreateSolidColorBrush(timerTextColor        , mTimerTextBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(timerOuterColor       , mTimerOuterBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(timerOuterOutlineColor, mTimerOuterOutlineBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(timerInnerColor       , mTimerInnerBrush.GetAddressOf());
-    hr = mRenderTarget->CreateSolidColorBrush(timerInnerOutlineColor, mTimerInnerOutlineBrush.GetAddressOf());
-
-    if (FAILED(hr))
-    {
-        spdlog::error("CreateSolidColorBrush() failed: {}", HResultToString(hr));
-        return hr;
-    }
-
-    return hr;
-}
-
-auto ImpulseApp::CreateFonts () -> HRESULT
-{
-    auto hr = S_OK;
-
-    // Create Button text format object.
-    {
-        spdlog::debug("Creating Button Font");
-        hr = mDWriteFactory->CreateTextFormat(
-            L"SegoeUI",
-            NULL,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            16,
-            L"", //locale
-            mButtonTextFormat.GetAddressOf()
-        );
-        if (FAILED(hr))
-        {
-            spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
-            return hr;
-        }
-
-        mButtonTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-        mButtonTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-        spdlog::debug("Successfully created Button Font");
-    }
-
-    // Create Timer text format object.
-    {
-        spdlog::debug("Creating Timer Font");
-        hr = mDWriteFactory->CreateTextFormat(
-            L"SegoeUI",
-            NULL,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            48,
-            L"", //locale
-            mTimerTextFormat.GetAddressOf()
-        );
-        if (FAILED(hr))
-        {
-            spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
-            return hr;
-        }
-
-        mTimerTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-        mTimerTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-        spdlog::debug("Successfully created Timer Font");
-    }
-
-    // Create Statics format object.
-    {
-        spdlog::debug("Creating Static Texts Font");
-        hr = mDWriteFactory->CreateTextFormat(
-            L"SegoeUI",
-            NULL,
-            DWRITE_FONT_WEIGHT_BOLD,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            24,
-            L"", //locale
-            mStateTextFormat.GetAddressOf()
-        );
-        hr = mDWriteFactory->CreateTextFormat(
-            L"SegoeUI",
-            NULL,
-            DWRITE_FONT_WEIGHT_BOLD,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            20,
-            L"", //locale
-            mTaskTextFormat.GetAddressOf()
-        );
-
-        if (FAILED(hr))
-        {
-            spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
-            return hr;
-        }
-
-        mStateTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-        mStateTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-        mTaskTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-        mTaskTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-        spdlog::debug("Successfully created Static Texts Font");
-    }
-    
-    return S_OK;
-}
-
-auto ImpulseApp::CreateButtons () -> HRESULT
-{
-    const auto rt           = mRenderTarget->GetSize();
-    const auto buttonWidth  = 32.0f;
-    const auto buttonHeight = buttonWidth;
-    const auto padding      = 5.0f;
-    const auto buttonSize   = D2D1::SizeF(buttonWidth, buttonHeight);
-
-    auto create = [&](const wchar_t* text, D2D1_POINT_2F position, D2D1_SIZE_F size)
-    {
-        return Button::Create(
-            text,
-            position,
-            size,
-            mButtonTextFormat,
-            mDefaultTextBrush,
-            mDefaultOutlineBrush,
-            mHoverTextBrush,
-            mHoverOutlineBrush,
-            mActiveTextBrush,
-            mActiveOutlineBrush,
-            mFocusTextBrush,
-            mFocusOutlineBrush,
-            mDisabledTextBrush,
-            mDisabledOutlineBrush
-        );
-    };
-
-    mSettingsButton = create(L"O", D2D1::Point2F(padding, padding), buttonSize);
-    mCloseButton = create(L"X", D2D1::Point2F(rt.width - buttonWidth - padding, padding), buttonSize);
-    mPauseButton = create(L"||", D2D1::Point2F(padding, rt.height - buttonHeight - padding), buttonSize);
-
-    mSettingsButton->OnClick = [&]{ MessageBoxW(mWindowHandle, L"Hello", L"Test", MB_OK); };
-
-    return S_OK;
-}
-
-auto ImpulseApp::CreateTimer () -> HRESULT
-{
-    const auto rt      = mRenderTarget->GetSize();
-    const auto padding = 45.0f;
-    const auto radius  = (std::min(rt.width, rt.height) / 2) - padding;
-
-    mTimer = Timer::Create(
-        D2D1::Point2F(rt.width/2, rt.height/2),
-        radius,
-        radius - 25.0f,
-        mTimerTextFormat,
-        mTimerTextBrush,
-        mTimerOuterBrush,
-        mTimerOuterOutlineBrush,
-        mTimerInnerBrush,
-        mTimerInnerOutlineBrush
-    );
-
-    mTimer->Duration(25 * 60);
-    mTimer->Start();
-
-    return S_OK;
-}
-
-auto ImpulseApp::CreateStaticText () -> HRESULT
-{
-    auto hr = S_OK;
-
-    const auto rt = mRenderTarget->GetSize();
-    
-    {
-        const auto position = D2D1::Point2F(42.0f, 5.0f);
-        const auto size     = D2D1::SizeF((rt.width - 42.0f) - position.x, 32.0f - position.y);
-
-        mStaticImpulseState = StaticText::Create(
-            L"Work Time", position, size, mStateTextFormat, mDefaultTextBrush
-        );
-    }
-
-    {
-        const auto position = D2D1::Point2F(42.0f, rt.height - 32.0f);
-        const auto size     = D2D1::SizeF((rt.width - 42.0f) - position.x, rt.height - 5.0f - position.y);
-
-        mStaticCurrentTask = StaticText::Create(
-            L"Create Impulse Program", position, size, mTaskTextFormat, mDefaultTextBrush
-        );
-    }
-
-    return 0;
+    mRenderTarget.Reset();   
 }
 
 auto ImpulseApp::CalculateLayout () -> void
@@ -301,26 +63,158 @@ auto ImpulseApp::CalculateLayout () -> void
 
 #pragma endregion
 
+#pragma region "Creating Widgets"
+
+////////////////////////////////////////////////////////////////////////////////
+
+auto ImpulseApp::CreateButtons () -> HRESULT
+{
+    const auto rt           = mRenderTarget->GetSize();
+    const auto buttonWidth  = 32.0f;
+    const auto buttonHeight = buttonWidth;
+    const auto padding      = 5.0f;
+
+    auto desc     = Button::Desc();
+    desc.size     = D2D1::SizeF(buttonWidth, buttonHeight);
+    desc.fontSize = 16.0f;
+
+    desc.defaultTextColor     = D2D1::ColorF(D2D1::ColorF::Black);
+    desc.defaultOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
+    desc.hoverTextColor       = D2D1::ColorF(D2D1::ColorF::Blue);
+    desc.hoverOutlineColor    = D2D1::ColorF(D2D1::ColorF::Blue);
+    desc.activeTextColor      = D2D1::ColorF(D2D1::ColorF::Cyan);
+    desc.activeOutlineColor   = D2D1::ColorF(D2D1::ColorF::Cyan);
+    desc.disabledTextColor    = D2D1::ColorF(D2D1::ColorF::Gray);
+    desc.disabledOutlineColor = D2D1::ColorF(D2D1::ColorF::Gray);
+
+    {
+        desc.text     = L"⚙️";
+        desc.position = D2D1::Point2F(padding, padding);
+
+        mButtonSettings = Button::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    }
+
+    {
+        desc.text     = L"❌";
+        desc.position = D2D1::Point2F(rt.width - buttonWidth - padding, padding);
+
+        mButtonClose = Button::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    }
+
+    {
+        desc.text     = L"▶️";
+        desc.position = D2D1::Point2F(padding, rt.height - buttonHeight - padding);
+
+        mButtonPause = Button::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    }
+
+    {
+        desc.text     = L"ℹ️";
+        desc.position = D2D1::Point2F(rt.width - buttonWidth - padding, rt.height - buttonHeight - padding);
+
+        mButtonInfo = Button::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    }
+
+    mButtonSettings->OnClick = [&]{ MessageBoxW(mWindowHandle, L"Hello", L"Test", MB_OK); };
+
+    return S_OK;
+}
+
+auto ImpulseApp::CreateTimer () -> HRESULT
+{
+    const auto rt      = mRenderTarget->GetSize();
+    const auto padding = 45.0f;
+    const auto radius  = (std::min(rt.width, rt.height) / 2) - padding;
+
+    auto desc = Timer::Desc();
+
+    desc.center      = D2D1::Point2F(rt.width/2, rt.height/2);
+    desc.outerRadius = radius;
+    desc.innerRadius = radius - 25.0f;
+    desc.outerStroke = 2.5f;
+    desc.innerStroke = 2.5f;
+    
+    desc.outerCircleColor  = D2D1::ColorF(0.40f, 0.63f, 1.0f);
+    desc.outerOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
+    desc.innerCircleColor  = D2D1::ColorF(0.68f, 0.81f, 1.0f);
+    desc.innerOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
+
+    desc.timerTextDesc.fontSize  = 40.0f;
+    desc.topTextDesc.fontSize    = 16.0f;
+    desc.bottomTextDesc.fontSize = 16.0f;
+
+    mTimerWidget = Timer::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+
+    mTimerWidget->Duration(25 * 60);
+    mTimerWidget->Start();
+
+    return S_OK;
+}
+
+auto ImpulseApp::CreateStaticText () -> HRESULT
+{
+    const auto rt = mRenderTarget->GetSize();
+    
+    auto desc = StaticText::Desc();
+
+    desc.fontWeight = DWRITE_FONT_WEIGHT_BOLD;
+
+    {
+        desc.text     = L"<Impulse State>";
+        desc.position = D2D1::Point2F(42.0f, 5.0f);
+        desc.size     = D2D1::SizeF((rt.width - 42.0f) - desc.position.x, 32.0f - desc.position.y);
+        desc.fontSize = 24.0f;
+
+        mStaticImpulseState = StaticText::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    }
+
+    {
+        desc.text     = L"<Current Task>";
+        desc.position = D2D1::Point2F(42.0f, rt.height - 32.0f);
+        desc.size     = D2D1::SizeF((rt.width - 42.0f) - desc.position.x, rt.height - 5.0f - desc.position.y);
+        desc.fontSize = 20.0f;
+        
+        mStaticCurrentTask = StaticText::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    }
+
+    return 0;
+}
+
+#pragma endregion
+
 #pragma region "Drawing"
 
 ////////////////////////////////////////////////////////////////////////////////
 
 auto ImpulseApp::DrawButtons () -> void
 {
-    mCloseButton->Draw(mRenderTarget);
-    mSettingsButton->Draw(mRenderTarget);
-    mPauseButton->Draw(mRenderTarget);
+    auto rt = mRenderTarget.Get();
+
+    if (mButtonClose)    { mButtonClose->Draw(rt); }
+    if (mButtonSettings) { mButtonSettings->Draw(rt); }
+    if (mButtonPause)    { mButtonPause->Draw(rt); }
+    if (mButtonInfo)     { mButtonInfo->Draw(rt); }
 }
 
 auto ImpulseApp::DrawTimer () -> void
 {
-    mTimer->Draw(mRenderTarget);
+    if (mTimerWidget)
+    {
+        mTimerWidget->Draw(mRenderTarget.Get());
+    }
 }
 
 auto ImpulseApp::DrawStaticTexts () -> void
 {
-    mStaticImpulseState->Draw(mRenderTarget);
-    mStaticCurrentTask->Draw(mRenderTarget);
+    if (mStaticImpulseState)
+    {
+        mStaticImpulseState->Draw(mRenderTarget.Get());
+    }
+
+    if (mStaticCurrentTask)
+    {
+        mStaticCurrentTask->Draw(mRenderTarget.Get());
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -333,17 +227,21 @@ auto ImpulseApp::DrawStaticTexts () -> void
 
 auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
 {
-    if (mCloseButton->HitTest(point))
+    if (mButtonClose->HitTest(point))
     {
-        return mCloseButton.get();
+        return mButtonClose.get();
     }
-    if (mSettingsButton->HitTest(point))
+    if (mButtonSettings->HitTest(point))
     {
-        return mSettingsButton.get();
+        return mButtonSettings.get();
     }
-    if (mPauseButton->HitTest(point))
+    if (mButtonPause->HitTest(point))
     {
-        return mPauseButton.get();
+        return mButtonPause.get();
+    }
+    if (mButtonInfo->HitTest(point))
+    {
+        return mButtonInfo.get();
     }
     
     return nullptr;
@@ -406,6 +304,7 @@ auto ImpulseApp::OnDestroy () -> LRESULT
 {
     DiscardGraphicsResources();
     mD2DFactory.Reset();
+    mDWriteFactory.Reset();
 
     PostQuitMessage(0);
     return 0;
@@ -534,9 +433,9 @@ auto ImpulseApp::OnLeftMouseButtonDown (int x, int y, DWORD flags) -> LRESULT
 
 auto ImpulseApp::OnTimer () -> LRESULT
 {
-    if (mTimer->Running())
+    if (mTimerWidget->Running())
     {
-        mTimer->Tick();
+        mTimerWidget->Tick();
         Redraw();
     }
 

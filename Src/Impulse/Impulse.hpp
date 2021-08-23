@@ -12,9 +12,6 @@
 #include <dwrite.h>
 #include <wrl.h>
 
-#pragma comment(lib, "d2d1")
-#pragma comment(lib, "dwrite")
-
 namespace {
     using namespace D2D1;
     using namespace Microsoft::WRL;
@@ -26,62 +23,36 @@ namespace Impulse
 class ImpulseApp : public Window
 {
     ComPtr<ID2D1Factory>          mD2DFactory;
-    ComPtr<ID2D1HwndRenderTarget> mRenderTarget;
     ComPtr<IDWriteFactory>        mDWriteFactory;
-    
-    ComPtr<IDWriteTextFormat>     mButtonTextFormat;
-    ComPtr<IDWriteTextFormat>     mTimerTextFormat;
-    ComPtr<IDWriteTextFormat>     mStateTextFormat;
-    ComPtr<IDWriteTextFormat>     mTaskTextFormat;
+    ComPtr<ID2D1HwndRenderTarget> mRenderTarget;
 
-    ComPtr<ID2D1SolidColorBrush>  mBackgroundBrush;
-    ComPtr<ID2D1SolidColorBrush>  mDefaultTextBrush;
-    ComPtr<ID2D1SolidColorBrush>  mDefaultOutlineBrush;
-    ComPtr<ID2D1SolidColorBrush>  mHoverTextBrush;
-    ComPtr<ID2D1SolidColorBrush>  mHoverOutlineBrush;
-    ComPtr<ID2D1SolidColorBrush>  mActiveTextBrush;
-    ComPtr<ID2D1SolidColorBrush>  mActiveOutlineBrush;
-    ComPtr<ID2D1SolidColorBrush>  mFocusTextBrush;
-    ComPtr<ID2D1SolidColorBrush>  mFocusOutlineBrush;
-    ComPtr<ID2D1SolidColorBrush>  mDisabledTextBrush;
-    ComPtr<ID2D1SolidColorBrush>  mDisabledOutlineBrush;
-
-    ComPtr<ID2D1SolidColorBrush>  mTimerTextBrush;
-    ComPtr<ID2D1SolidColorBrush>  mTimerOuterBrush;
-    ComPtr<ID2D1SolidColorBrush>  mTimerOuterOutlineBrush;
-    ComPtr<ID2D1SolidColorBrush>  mTimerInnerBrush;
-    ComPtr<ID2D1SolidColorBrush>  mTimerInnerOutlineBrush;
-
-    std::unique_ptr<Button>       mCloseButton;
-    std::unique_ptr<Button>       mSettingsButton;
-    std::unique_ptr<Button>       mPauseButton;
-    std::unique_ptr<Timer>        mTimer;
+    std::unique_ptr<Button>       mButtonClose;
+    std::unique_ptr<Button>       mButtonSettings;
+    std::unique_ptr<Button>       mButtonPause;
+    std::unique_ptr<Button>       mButtonInfo;
+    std::unique_ptr<Timer>        mTimerWidget;
     std::unique_ptr<StaticText>   mStaticImpulseState;
     std::unique_ptr<StaticText>   mStaticCurrentTask;
 
     Widget*                       mClickedWidget;
     Widget*                       mHoveredWidget;
 
-    // Create methods.
     auto CreateGraphicsResources  () -> HRESULT;
     auto DiscardGraphicsResources () -> void;
+    auto CalculateLayout          () -> void;
+    auto Redraw                   () -> void { InvalidateRect(mWindowHandle, nullptr, false); }
 
-    auto CreateBrushes    () -> HRESULT;
-    auto CreateFonts      () -> HRESULT;
+    // Create methods.
     auto CreateButtons    () -> HRESULT;
     auto CreateTimer      () -> HRESULT;
     auto CreateStaticText () -> HRESULT;
-
-    auto CalculateLayout () -> void;
 
     // Draw methods.
     auto DrawButtons     () -> void;
     auto DrawTimer       () -> void;
     auto DrawStaticTexts () -> void;
 
-    auto Redraw () -> void { InvalidateRect(mWindowHandle, nullptr, false); }
-
-    // Get widget hit by point.
+    // Get widget that is hit by @point.
     auto HitTest (D2D_POINT_2F point) -> Widget*;
 
     // Inherited via Window

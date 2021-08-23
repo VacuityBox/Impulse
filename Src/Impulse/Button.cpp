@@ -1,6 +1,9 @@
 #include "PCH.hpp"
 #include "Button.hpp"
 
+#include "Utility.hpp"
+#include <spdlog/spdlog.h>
+
 namespace Impulse {
 
 auto Button::HitTest (D2D_POINT_2F point) -> bool
@@ -12,24 +15,18 @@ auto Button::HitTest (D2D_POINT_2F point) -> bool
         ;;
 }
 
-auto Button::Update (Widget::State state) -> bool
-{
-    if (mState == state || mState == Widget::State::Disabled)
-    {
-        return false;
-    }
-
-    mState = state;
-    return true;
-}
-
-auto Button::Draw (ComPtr<ID2D1RenderTarget> pRenderTarget) -> void
+auto Button::Draw (ID2D1RenderTarget* pRenderTarget) -> void
 {
     auto draw = [&](ComPtr<ID2D1SolidColorBrush> textBrush, ComPtr<ID2D1SolidColorBrush> outlineBrush)
     {
         pRenderTarget->DrawRectangle(Rect(), outlineBrush.Get());
         pRenderTarget->DrawTextW(
-            mText.c_str(), mText.length(), mDWriteTextFormat.Get(), Rect(), textBrush.Get()
+            mText.c_str(),
+            mText.length(),
+            mTextFormat.Get(),
+            Rect(),
+            textBrush.Get(),
+            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
         );
     };
 
@@ -58,43 +55,75 @@ auto Button::Draw (ComPtr<ID2D1RenderTarget> pRenderTarget) -> void
 }
 
 auto Button::Create (
-        std::wstring                 text,
-        D2D_POINT_2F                 position,
-        D2D_SIZE_F                   size,
-        ComPtr<IDWriteTextFormat>    pDWriteTextFormat,
-        ComPtr<ID2D1SolidColorBrush> pDefaultTextBrush,
-        ComPtr<ID2D1SolidColorBrush> pDefaultOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> pHoverTextBrush,
-        ComPtr<ID2D1SolidColorBrush> pHoverOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> pActiveTextBrush,
-        ComPtr<ID2D1SolidColorBrush> pActiveOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> pFocusTextBrush,
-        ComPtr<ID2D1SolidColorBrush> pFocusOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> pDisabledTextBrush,
-        ComPtr<ID2D1SolidColorBrush> pDisabledOutlineBrush
+    const Button::Desc& desc,
+    ID2D1RenderTarget*  pRenderTarget,
+    IDWriteFactory*     pDWriteFactory
 ) -> std::unique_ptr<Button>
 {
+    spdlog::debug("Creating button");
+
+    if (!pRenderTarget)
+    {
+        spdlog::error("pRenderTarget is null");
+        return nullptr;
+    }
+
+    if (!pDWriteFactory)
+    {
+        spdlog::error("pDWriteFactory is null");
+        return nullptr;
+    }
+
+    auto hr     = S_OK;
     auto button = Button();
 
-    button.mPosition = position;
-    button.mSize     = size;
-    button.mText     = text;
+    button.mPosition = desc.position;
+    button.mSize     = desc.size;
+    button.mText     = desc.text;
 
-    button.mDWriteTextFormat = pDWriteTextFormat;
+    hr = pDWriteFactory->CreateTextFormat(
+        desc.font,
+        nullptr,
+        desc.fontWeight,
+        desc.fontStyle,
+        desc.fontStretch,
+        desc.fontSize,
+        L"",
+        button.mTextFormat.GetAddressOf()
+    );
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+        return nullptr;
+    }
 
-    button.mDefaultTextBrush     = pDefaultTextBrush;
-    button.mDefaultOutlineBrush  = pDefaultOutlineBrush;
-    button.mHoverTextBrush       = pHoverTextBrush;
-    button.mHoverOutlineBrush    = pHoverOutlineBrush;
-    button.mActiveTextBrush      = pActiveTextBrush;
-    button.mActiveOutlineBrush   = pActiveOutlineBrush;
-    button.mFocusTextBrush       = pFocusTextBrush;
-    button.mFocusOutlineBrush    = pFocusOutlineBrush;
-    button.mDisabledTextBrush    = pDisabledTextBrush;
-    button.mDisabledOutlineBrush = pDisabledOutlineBrush;
+    button.mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    button.mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
-    return std::make_unique<Button>(button);
-    
+    auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
+    {
+        return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
+    };
+
+    hr = createBrush(desc.defaultTextColor    , button.mDefaultTextBrush    .GetAddressOf());
+    hr = createBrush(desc.defaultOutlineColor , button.mDefaultOutlineBrush .GetAddressOf());
+    hr = createBrush(desc.hoverTextColor      , button.mHoverTextBrush      .GetAddressOf());
+    hr = createBrush(desc.hoverOutlineColor   , button.mHoverOutlineBrush   .GetAddressOf());
+    hr = createBrush(desc.activeTextColor     , button.mActiveTextBrush     .GetAddressOf());
+    hr = createBrush(desc.activeOutlineColor  , button.mActiveOutlineBrush  .GetAddressOf());
+    hr = createBrush(desc.focusTextColor      , button.mFocusTextBrush      .GetAddressOf());
+    hr = createBrush(desc.focusOutlineColor   , button.mFocusOutlineBrush   .GetAddressOf());
+    hr = createBrush(desc.disabledTextColor   , button.mDisabledTextBrush   .GetAddressOf());
+    hr = createBrush(desc.disabledOutlineColor, button.mDisabledOutlineBrush.GetAddressOf());
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateSolidColorBrush() failed: {}", HResultToString(hr));
+        return nullptr;
+    }
+
+    spdlog::debug("Button created");
+
+    return std::make_unique<Button>(std::move(button));
 }
 
 } // namespace Impulse

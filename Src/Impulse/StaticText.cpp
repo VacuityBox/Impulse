@@ -1,6 +1,9 @@
 #include "PCH.hpp"
 #include "StaticText.hpp"
 
+#include "Utility.hpp"
+#include <spdlog/spdlog.h>
+
 namespace Impulse {
 
 auto StaticText::HitTest (D2D_POINT_2F point)  -> bool
@@ -12,39 +15,80 @@ auto StaticText::HitTest (D2D_POINT_2F point)  -> bool
         ;;
 }
 
-auto StaticText::Update (Widget::State state) -> bool
+auto StaticText::Draw (ID2D1RenderTarget* pRenderTarget) -> void
 {
-    if (mState == state)
-    {
-        return false;
-    }
+#if defined(_DEBUG)
+    pRenderTarget->DrawRectangle(Rect(), mDefaultTextBrush.Get());
+#endif
 
-    mState = state;
-    return true;
-}
-
-auto StaticText::Draw (ComPtr<ID2D1RenderTarget> pRenderTarget) -> void
-{
     pRenderTarget->DrawTextW(
-        mText.c_str(), mText.length(), mTextFormat.Get(), Rect(), mTextBrush.Get()
+        mText.c_str(), mText.length(), mTextFormat.Get(), Rect(), mDefaultTextBrush.Get()
     );
 }
 
 auto StaticText::Create (
-    std::wstring                 text,
-    D2D_POINT_2F                 position,
-    D2D_SIZE_F                   size,
-    ComPtr<IDWriteTextFormat>    pTextFormat,
-    ComPtr<ID2D1SolidColorBrush> pTextBrush
+    const StaticText::Desc& desc,
+    ID2D1RenderTarget*      pRenderTarget,
+    IDWriteFactory*         pDWriteFactory
 ) -> std::unique_ptr<StaticText>
 {
+    spdlog::debug("Creating StaticText");
+
+    if (!pRenderTarget)
+    {
+        spdlog::error("pRenderTarget is null");
+        return nullptr;
+    }
+
+    if (!pDWriteFactory)
+    {
+        spdlog::error("pDWriteFactory is null");
+        return nullptr;
+    }
+
+    auto hr         = S_OK;
     auto staticText = StaticText();
 
-    staticText.mText       = text;
-    staticText.mPosition   = position;
-    staticText.mSize       = size;
-    staticText.mTextFormat = pTextFormat;
-    staticText.mTextBrush  = pTextBrush;
+    staticText.mPosition = desc.position;
+    staticText.mSize     = desc.size;
+    staticText.mText     = desc.text;
+
+    hr = pDWriteFactory->CreateTextFormat(
+        desc.font,
+        nullptr,
+        desc.fontWeight,
+        desc.fontStyle,
+        desc.fontStretch,
+        desc.fontSize,
+        L"",
+        staticText.mTextFormat.GetAddressOf()
+    );
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+        return nullptr;
+    }
+
+    staticText.mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    staticText.mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
+    {
+        return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
+    };
+
+    hr = createBrush(desc.defaultTextColor    , staticText.mDefaultTextBrush    .GetAddressOf());
+    hr = createBrush(desc.hoverTextColor      , staticText.mHoverTextBrush      .GetAddressOf());
+    hr = createBrush(desc.activeTextColor     , staticText.mActiveTextBrush     .GetAddressOf());
+    hr = createBrush(desc.focusTextColor      , staticText.mFocusTextBrush      .GetAddressOf());
+    hr = createBrush(desc.disabledTextColor   , staticText.mDisabledTextBrush   .GetAddressOf());
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateSolidColorBrush() failed: {}", HResultToString(hr));
+        return nullptr;
+    }
+
+    spdlog::debug("StaticText created");
 
     return std::make_unique<StaticText>(std::move(staticText));
 }

@@ -1,7 +1,10 @@
 #include "PCH.hpp"
 #include "Timer.hpp"
 
+#include "Utility.hpp"
+
 #include <cmath>
+#include <spdlog/spdlog.h>
 
 namespace Impulse {
 
@@ -37,77 +40,133 @@ auto Timer::HitTest (D2D_POINT_2F point) -> bool
     return d <= mOuterRadius;
 }
 
-auto Timer::Update (Widget::State state) -> bool
-{
-    if (mState == state)
-    {
-        return false;
-    }
-
-    mState = state;
-
-    return true;
-}
-
-auto Timer::Draw (ComPtr<ID2D1RenderTarget> pRenderTarget) -> void
+auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
 {
     // Draw Ellipse.
     const auto outer = OuterEllipse();
     const auto inner = InnerEllipse();
 
     auto draw = [&](
-        ComPtr<ID2D1SolidColorBrush> pOuterBrush,
-        ComPtr<ID2D1SolidColorBrush> pOuterOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> pInnerBrush,
-        ComPtr<ID2D1SolidColorBrush> pInnerOutlineBrush
+        ID2D1SolidColorBrush* pOuterBrush,
+        ID2D1SolidColorBrush* pOuterOutlineBrush,
+        ID2D1SolidColorBrush* pInnerBrush,
+        ID2D1SolidColorBrush* pInnerOutlineBrush
         )
     {
-        pRenderTarget->DrawEllipse(outer, pOuterOutlineBrush.Get(), 2.5f);
-        pRenderTarget->FillEllipse(outer, pOuterBrush.Get());
-        pRenderTarget->DrawEllipse(inner, pInnerOutlineBrush.Get(), 2.5f);
-        pRenderTarget->FillEllipse(inner, pInnerBrush.Get());
+        pRenderTarget->DrawEllipse(outer, pOuterOutlineBrush, mOuterStroke);
+        pRenderTarget->FillEllipse(outer, pOuterBrush);
+        pRenderTarget->DrawEllipse(inner, pInnerOutlineBrush, mInnerStroke);
+        pRenderTarget->FillEllipse(inner, pInnerBrush);
     };
 
 
-    draw(mOuterBrush, mOuterOutlineBrush, mInnerBrush, mInnerOutlineBrush);
-
-    // Draw Timer.
-    const auto text = DurationToString();
-    pRenderTarget->DrawTextW(
-        text.c_str(), text.length(), mTextFormat.Get(), Rect(), mTextBrush.Get()
+    draw(
+        mOuterCircleBrush.Get(),
+        mOuterOutlineBrush.Get(),
+        mInnerCircleBrush.Get(),
+        mInnerOutlineBrush.Get()
     );
+
+    // Draw Texts.
+    mStaticTop->Draw(pRenderTarget);
+    mStaticBottom->Draw(pRenderTarget);
+
+    const auto text = DurationToString();
+    mStaticTimer->Text(text);
+    mStaticTimer->Draw(pRenderTarget);
 }
 
 auto Timer::Create (
-        D2D_POINT_2F                 center,
-        float                        outerRadius,
-        float                        innerRadius,
-        ComPtr<IDWriteTextFormat>    pDWriteTextFormat,
-        ComPtr<ID2D1SolidColorBrush> pTextBrush,
-        ComPtr<ID2D1SolidColorBrush> pOuterBrush,
-        ComPtr<ID2D1SolidColorBrush> pOuterOutlineBrush,
-        ComPtr<ID2D1SolidColorBrush> pInnerBrush,
-        ComPtr<ID2D1SolidColorBrush> pInnerOutlineBrush
+    const Timer::Desc& desc,
+    ID2D1RenderTarget* pRenderTarget,
+    IDWriteFactory*    pDWriteFactory
 ) -> std::unique_ptr<Timer>
 {
-    auto timer = Timer();
+    spdlog::debug("Creating Timer");
 
-    timer.mCenter      = center;
-    timer.mOuterRadius = outerRadius;
-    timer.mInnerRadius = innerRadius;
+    if (!pRenderTarget)
+    {
+        spdlog::error("pRenderTarget is null");
+        return nullptr;
+    }
 
-    timer.mDuration = 0;
-    timer.mPaused   = true;
+    if (!pDWriteFactory)
+    {
+        spdlog::error("pDWriteFactory is null");
+        return nullptr;
+    }
 
-    timer.mTextFormat = pDWriteTextFormat;
-    timer.mTextBrush  = pTextBrush;
+    auto hr    = S_OK;
+    auto timer = std::make_unique<Timer>();
 
-    timer.mOuterBrush        = pOuterBrush;
-    timer.mOuterOutlineBrush = pOuterOutlineBrush;
-    timer.mInnerBrush        = pInnerBrush;
-    timer.mInnerOutlineBrush = pInnerOutlineBrush;
+    timer->mCenter      = desc.center;
+    timer->mOuterRadius = desc.outerRadius;
+    timer->mInnerRadius = desc.innerRadius;
 
-    return std::make_unique<Timer>(std::move(timer));
+    // Create Timer Text.
+    auto rect   = timer->Rect();
+    auto width  = rect.right - rect.left;
+    auto height = rect.bottom - rect.top;
+    {
+        timer->mStaticTimer = StaticText::Create(desc.timerTextDesc, pRenderTarget, pDWriteFactory);
+        if (!timer->mStaticTimer)
+        {
+            spdlog::error("Failed to create timer text");
+            return nullptr;
+        }
+        timer->mStaticTimer->Position(rect.left, rect.top);
+        timer->mStaticTimer->Size(width, height);
+    }
+
+    // Create Top Text.
+    {
+        timer->mStaticTop = StaticText::Create(desc.topTextDesc, pRenderTarget, pDWriteFactory);
+        if (!timer->mStaticTop)
+        {
+            spdlog::error("Failed to create top text");
+            return nullptr;
+        }
+        timer->mStaticTop->Position(
+            rect.left,
+            desc.center.y - 32.0f - 32.0f);
+        timer->mStaticTop->Size(width, 32.0f);
+        timer->mStaticTop->Text(L"(paused)");
+    }
+
+    // Create Bottom Text.
+    {
+        timer->mStaticBottom = StaticText::Create(desc.bottomTextDesc, pRenderTarget, pDWriteFactory);
+        if (!timer->mStaticBottom)
+        {
+            spdlog::error("Failed to create bottom text");
+            return nullptr;
+        }
+        timer->mStaticBottom->Position(desc.center.x, desc.center.y + 15.0f);
+        timer->mStaticBottom->Position(
+            rect.left,
+            desc.center.y + 32.0f);
+        timer->mStaticBottom->Size(width, 32.0f);
+        timer->mStaticBottom->Text(L"1/4");
+    }
+
+    auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
+    {
+        return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
+    };
+
+    hr = createBrush(desc.outerCircleColor , timer->mOuterCircleBrush .GetAddressOf());
+    hr = createBrush(desc.outerOutlineColor, timer->mOuterOutlineBrush.GetAddressOf());
+    hr = createBrush(desc.innerCircleColor , timer->mInnerCircleBrush .GetAddressOf());
+    hr = createBrush(desc.innerOutlineColor, timer->mInnerOutlineBrush.GetAddressOf());
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateSolidColorBrush() failed: {}", HResultToString(hr));
+        return nullptr;
+    }
+
+    spdlog::debug("Timer created");
+
+    return timer;
 }
 
 } // namespace Impulse
