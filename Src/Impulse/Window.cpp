@@ -46,14 +46,14 @@ auto Window::Dispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
         );
 
     case WM_RBUTTONUP:
-        return OnLeftMouseButtonUp(
+        return OnRightMouseButtonUp(
             GET_X_LPARAM(lParam),
             GET_Y_LPARAM(lParam),
             static_cast<DWORD>(wParam)
         );
 
     case WM_RBUTTONDOWN:
-        return OnLeftMouseButtonDown(
+        return OnRightMouseButtonDown(
             GET_X_LPARAM(lParam),
             GET_Y_LPARAM(lParam),
             static_cast<DWORD>(wParam)
