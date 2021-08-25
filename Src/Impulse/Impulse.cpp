@@ -3,6 +3,8 @@
 
 #include "Utility.hpp"
 
+#include <fstream>
+
 namespace Impulse {
 
 #pragma region "Creating/Discard Resources"
@@ -41,6 +43,10 @@ auto ImpulseApp::CreateGraphicsResources () -> HRESULT
 
         CalculateLayout();
 
+        UpdatePauseButton();
+        UpdateStateStatic();
+        UpdateTaskStatic();
+
         spdlog::debug("Successfully created Graphics Resources");
     }
 
@@ -76,7 +82,7 @@ auto ImpulseApp::CreateButtons () -> HRESULT
 
     auto desc     = Button::Desc();
     desc.size     = D2D1::SizeF(buttonWidth, buttonHeight);
-    desc.fontSize = 16.0f;
+    desc.fontSize = 22.0f;
 
     desc.defaultTextColor     = D2D1::ColorF(D2D1::ColorF::Black);
     desc.defaultOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
@@ -115,7 +121,10 @@ auto ImpulseApp::CreateButtons () -> HRESULT
         mButtonInfo = Button::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
     }
 
-    mButtonSettings->OnClick = [&]{ MessageBoxW(mWindowHandle, L"Hello", L"Test", MB_OK); };
+    mButtonSettings->OnClick = [&]{ ButtonSettings_Click(); };
+    mButtonClose->OnClick = [&]{ ButtonClose_Click(); };
+    mButtonPause->OnClick = [&]{ ButtonPause_Click(); };
+    mButtonInfo->OnClick = [&]{ ButtonInfo_Click(); };
 
     return S_OK;
 }
@@ -143,10 +152,27 @@ auto ImpulseApp::CreateTimer () -> HRESULT
     desc.topTextDesc.fontSize    = 16.0f;
     desc.bottomTextDesc.fontSize = 16.0f;
 
-    mTimerWidget = Timer::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get());
+    mTimerWidget = Timer::Create(desc, mRenderTarget.Get(), mDWriteFactory.Get(), mSettings);
 
-    mTimerWidget->Duration(25 * 60);
-    mTimerWidget->Start();
+    mTimerWidget->OnTimeout = [&]{ Timer_Timeout(); };
+    mTimerWidget->Duration(mSettings->WorkDuration);
+    
+    if (mSettings->AutoStartTimer)
+    {
+        mTimerWidget->Start();
+        mSettings->CurrentState = ImpulseState::WorkShift;
+    }
+    else
+    {
+        mTimerWidget->Pause();
+        mSettings->CurrentState = ImpulseState::Inactive; // on start timer is inactive
+    }
+
+    if (!InternalStartTimer())
+    {
+        spdlog::error("Failed to start internal timer");
+        return E_ABORT;
+    }
 
     return S_OK;
 }
@@ -245,6 +271,238 @@ auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
     }
     
     return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#pragma endregion
+
+#pragma region Events
+
+////////////////////////////////////////////////////////////////////////////////
+
+auto ImpulseApp::Timer_Timeout () -> void
+{
+    // This function gets executed when timer hit 0.
+    switch (mSettings->CurrentState)
+    {
+    // Time for break.
+    case ImpulseState::WorkShift:
+        // Check if we need to start long break.
+        if (mSettings->WorkShiftCount == mSettings->LongBreakAfter)
+        {
+            ImpulseLongBreak();
+        }
+        else
+        {
+            ImpulseShortBreak();
+        }
+        break;
+
+    // Time for work.
+    case ImpulseState::ShortBreak:
+    case ImpulseState::LongBreak:
+        ImpulseWork();
+
+        if (mSettings->WorkShiftCount < mSettings->LongBreakAfter)
+        {
+            mSettings->WorkShiftCount += 1;
+        }
+        else
+        {
+            mSettings->WorkShiftCount = 1;
+        }     
+
+        break;
+    }
+}
+
+auto ImpulseApp::ButtonClose_Click () -> void
+{
+    DestroyWindow(mWindowHandle);
+}
+
+auto ImpulseApp::ButtonSettings_Click () -> void
+{
+
+}
+
+auto ImpulseApp::ButtonPause_Click () -> void
+{
+    ImpulsePause();
+}
+
+auto ImpulseApp::ButtonInfo_Click () -> void
+{
+}
+
+auto ImpulseApp::ImpulseWork () -> void
+{
+    mTimerWidget->Duration(mSettings->WorkDuration);
+    mSettings->CurrentState = ImpulseState::WorkShift;
+    UpdateStateStatic();
+}
+
+auto ImpulseApp::ImpulseShortBreak () -> void
+{
+    mTimerWidget->Duration(mSettings->ShortBreakDuration);
+    mSettings->CurrentState = ImpulseState::ShortBreak;
+    UpdateStateStatic();
+}
+
+auto ImpulseApp::ImpulseLongBreak () -> void
+{
+    mTimerWidget->Duration(mSettings->LongBreakDuration);
+    mSettings->CurrentState = ImpulseState::LongBreak;
+    UpdateStateStatic();
+}
+
+auto ImpulseApp::ImpulsePause () -> void
+{
+    switch (mSettings->CurrentState)
+    {
+    case ImpulseState::WorkShift:
+    case ImpulseState::LongBreak:
+    case ImpulseState::ShortBreak:
+        mTimerWidget->Pause();
+        mButtonPause->Text(L"▶️");
+        mSettings->PreviousState = mSettings->CurrentState;
+        mSettings->CurrentState = ImpulseState::Paused;
+        break;
+
+    case ImpulseState::Inactive:
+    case ImpulseState::Paused:
+        mTimerWidget->Start();
+        mButtonPause->Text(L"⏸️");
+        mSettings->PreviousState = mSettings->CurrentState;
+        mSettings->CurrentState = ImpulseState::WorkShift;
+        break;
+    }
+
+    UpdateStateStatic();
+}
+
+auto ImpulseApp::ImpulseInactive () -> void
+{
+    mSettings->CurrentState = ImpulseState::Inactive;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#pragma endregion
+
+#pragma region Update
+
+////////////////////////////////////////////////////////////////////////////////
+
+auto ImpulseApp::UpdatePauseButton () -> void
+{
+    switch (mSettings->CurrentState)
+    {
+    case ImpulseState::WorkShift:
+    case ImpulseState::LongBreak:
+    case ImpulseState::ShortBreak:
+        mButtonPause->Text(L"⏸️");
+        break;
+
+    case ImpulseState::Inactive:
+    case ImpulseState::Paused:
+        mButtonPause->Text(L"▶️");
+        break;
+    }
+}
+
+auto ImpulseApp::UpdateTaskStatic () -> void
+{
+    mStaticCurrentTask->Text(mSettings->TaskName);
+}
+
+auto ImpulseApp::UpdateStateStatic () -> void
+{
+    switch (mSettings->CurrentState)
+    {
+    case ImpulseState::Inactive:
+        mStaticImpulseState->Text(L"");
+        break;
+
+    case ImpulseState::WorkShift:
+        mStaticImpulseState->Text(L"Work Time");
+        break;
+
+    case ImpulseState::LongBreak:
+        mStaticImpulseState->Text(L"Break Time");
+        break;
+
+    case ImpulseState::ShortBreak:
+        mStaticImpulseState->Text(L"Break Time");
+        break;
+
+    case ImpulseState::Paused: 
+        break;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#pragma endregion
+
+#pragma region Settings Load/Save
+
+////////////////////////////////////////////////////////////////////////////////
+
+auto ImpulseApp::LoadSettings () -> bool
+{
+    // NOTE: Settings should be in UTF-8
+    // Read Settings file.
+    auto file = std::ifstream(mSettingsFilePath);
+    if (!file)
+    {
+        spdlog::error("Can't open Settings file '{}' for reading", mSettingsFilePath.string());
+        return false;
+    }
+
+    // Deserialize.
+    auto json = nlohmann::json::parse(file, nullptr, false, true);
+    if (json.is_discarded())
+    {
+        spdlog::error("Failed to deserialize json");
+        return false;
+    }
+    
+    try
+    {
+        *mSettings = json.get<Settings>();
+    }
+    catch (nlohmann::json::exception&)
+    {
+        spdlog::error("Failed to deserialize settings");
+        spdlog::info("Using default values");
+        *mSettings = Settings();
+        return true;
+    }
+
+    //Log() << json.dump(4).c_str() << std::endl;
+    spdlog::info("Loaded Settings '{}'", mSettingsFilePath.string());
+
+    return true;
+}
+
+auto ImpulseApp::SaveSettings () -> bool
+{
+    // Open Settings file.
+    auto file = std::ofstream(mSettingsFilePath);
+    if (!file)
+    {
+        spdlog::error("Can't open Settings file '{}' for writing", mSettingsFilePath.string());
+        return false;
+    }
+
+    // Serialize.
+    auto json = nlohmann::json(*mSettings);
+    file << std::setw(4) << json;
+
+    spdlog::info("Saved Settings '{}'", mSettingsFilePath.string());
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -433,6 +691,11 @@ auto ImpulseApp::OnLeftMouseButtonDown (int x, int y, DWORD flags) -> LRESULT
 
 auto ImpulseApp::OnTimer () -> LRESULT
 {
+    if (!mTimerWidget)
+    {
+        return 0;
+    }
+
     if (mTimerWidget->Running())
     {
         mTimerWidget->Tick();
@@ -492,7 +755,7 @@ auto ImpulseApp::Init (HINSTANCE hInstance) -> bool
         spdlog::error("Initialization failed");
         return false;
     }
-
+    
     ShowWindow(mWindowHandle, SW_SHOW);
     spdlog::info("Initialization finished");
     return true;

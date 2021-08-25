@@ -65,5 +65,11 @@
     <ClInclude Include="StaticText.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Settings.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImpulseState.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

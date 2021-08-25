@@ -166,19 +166,12 @@ auto Window::InternalCreate (
         return false;
     }
 
-    mTimerId = SetTimer(mWindowHandle, 0, 1000, nullptr);
-    if (!mTimerId)
-    {
-        spdlog::error("SetTimer() failed: {}", GetLastErrorMessage());
-        return false;
-    }
-
     return true;
 }
 
 auto Window::InternalCleanup () -> void
 {
-    KillTimer(mWindowHandle, mTimerId);
+    InternalKillTimer();
     UnregisterClassW(ClassName(), mInstanceHandle);
 }
 

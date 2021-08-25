@@ -1,6 +1,10 @@
 #pragma once
 
 /// Standard library
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <string>
@@ -14,6 +18,7 @@
 #include <Windows.h>
 #include <windowsx.h>
 #include <comdef.h>
+#include <ShlObj.h>
 
 /// Direct2D
 #include <d2d1.h>
@@ -23,3 +28,6 @@
 /// spdlog
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+
+/// json
+#include <nlohmann/json.hpp>

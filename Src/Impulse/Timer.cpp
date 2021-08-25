@@ -10,9 +10,17 @@ namespace Impulse {
 
 auto Timer::DurationToString() -> std::wstring
 {
-    const auto minutes = mDuration / 60;
-    const auto seconds = mDuration % 60;
+    const auto negative = mDuration < 0;
+    const auto duration = negative ? std::abs(mDuration) : mDuration;
+
+    const auto minutes = duration / 60;
+    const auto seconds = duration % 60;
     auto str = std::wstring();
+
+    if (negative)
+    {
+        str += L"-";
+    }
 
     if (minutes < 10)
     {
@@ -68,7 +76,17 @@ auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
     );
 
     // Draw Texts.
-    mStaticTop->Draw(pRenderTarget);
+    if (mPaused)
+    {
+        mStaticTop->Draw(pRenderTarget);
+    }
+
+    const auto bottomText = 
+        std::to_wstring(mSettings->WorkShiftCount) +
+        L"/" +
+        std::to_wstring(mSettings->LongBreakAfter)
+        ;
+    mStaticBottom->Text(bottomText);
     mStaticBottom->Draw(pRenderTarget);
 
     const auto text = DurationToString();
@@ -77,9 +95,10 @@ auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
 }
 
 auto Timer::Create (
-    const Timer::Desc& desc,
-    ID2D1RenderTarget* pRenderTarget,
-    IDWriteFactory*    pDWriteFactory
+    const Timer::Desc&        desc,
+    ID2D1RenderTarget*        pRenderTarget,
+    IDWriteFactory*           pDWriteFactory,
+    std::shared_ptr<Settings> settingsPtr
 ) -> std::unique_ptr<Timer>
 {
     spdlog::debug("Creating Timer");
@@ -98,6 +117,8 @@ auto Timer::Create (
 
     auto hr    = S_OK;
     auto timer = std::make_unique<Timer>();
+
+    timer->mSettings = settingsPtr;
 
     timer->mCenter      = desc.center;
     timer->mOuterRadius = desc.outerRadius;

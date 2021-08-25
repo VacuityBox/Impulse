@@ -2,6 +2,7 @@
 #include "Utility.hpp"
 
 #include <comdef.h>
+#include <ShlObj.h>
 
 namespace Impulse {
 
@@ -117,6 +118,18 @@ auto HResultToString (HRESULT hr) -> std::string
     }
 
     return std::string();
+}
+
+auto GetAppDataPath () -> std::filesystem::path
+{
+    auto appDataPath = std::array<wchar_t, MAX_PATH>();
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, appDataPath.data())))
+    {
+        const auto dir = std::wstring(appDataPath.data());
+        return std::filesystem::path(dir);
+    }
+
+    return std::filesystem::path();
 }
 
 } // namespace Impulse

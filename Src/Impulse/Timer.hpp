@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Settings.hpp"
 #include "StaticText.hpp"
 #include "Widget.hpp"
 
@@ -25,7 +26,7 @@ public:
         D2D1_POINT_2F    center             = D2D1::Point2F();
         float            outerRadius        = 0.0f;
         float            innerRadius        = 0.0f;
-        uint64_t         duration           = 0;                // in seconds
+        int64_t          duration           = 0;                // in seconds
         float            outerStroke        = 1.0f;
         float            innerStroke        = 1.0f;
         
@@ -45,7 +46,7 @@ private:
     float         mInnerRadius = 0.0f;
     float         mOuterStroke = 1.0f;
     float         mInnerStroke = 1.0f;
-    uint64_t      mDuration    = 0;                // in seconds
+    int64_t       mDuration    = 0;                // in seconds
     bool          mPaused      = true;
 
     ComPtr<IDWriteTextFormat>    mTimerTextFormat;
@@ -60,6 +61,8 @@ private:
     std::unique_ptr<StaticText>  mStaticTimer;
     std::unique_ptr<StaticText>  mStaticTop;
     std::unique_ptr<StaticText>  mStaticBottom;
+
+    std::shared_ptr<Settings>    mSettings;
 
 public:
     std::function<void ()> OnTimeout = []{};
@@ -96,6 +99,10 @@ public:
         if (!mPaused)
         {
             mDuration -= 1;
+            if (mDuration < 0)
+            {
+                OnTimeout();
+            }
         }
     }
 
@@ -108,9 +115,10 @@ public:
     auto Paused  () { return mPaused; }
 
     static auto Create (
-        const Timer::Desc& desc,
-        ID2D1RenderTarget* pRenderTarget,
-        IDWriteFactory*    pDWriteFactory
+        const Timer::Desc&        desc,
+        ID2D1RenderTarget*        pRenderTarget,
+        IDWriteFactory*           pDWriteFactory,
+        std::shared_ptr<Settings> settingsPtr
     ) -> std::unique_ptr<Timer>;
 };
 

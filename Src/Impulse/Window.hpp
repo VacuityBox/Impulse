@@ -62,6 +62,21 @@ protected:
 
     auto InternalCleanup () -> void;
 
+    auto InternalStartTimer () -> bool
+    {
+        mTimerId = SetTimer(mWindowHandle, 0, 1000, nullptr);
+        return mTimerId != 0;
+    }
+
+    auto InternalKillTimer () -> void
+    {
+        if (mTimerId != 0)
+        {
+            KillTimer(mWindowHandle, mTimerId);
+            mTimerId = 0;
+        }
+    }
+
 public:
     virtual ~Window () = default;
 

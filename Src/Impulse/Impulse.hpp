@@ -2,8 +2,11 @@
 
 #include "Button.hpp"
 #include "StaticText.hpp"
+#include "Settings.hpp"
 #include "Timer.hpp"
 #include "Window.hpp"
+
+#include <filesystem>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -15,6 +18,8 @@
 namespace {
     using namespace D2D1;
     using namespace Microsoft::WRL;
+
+    namespace fs = std::filesystem;
 }
 
 namespace Impulse
@@ -34,8 +39,12 @@ class ImpulseApp : public Window
     std::unique_ptr<StaticText>   mStaticImpulseState;
     std::unique_ptr<StaticText>   mStaticCurrentTask;
 
-    Widget*                       mClickedWidget;
-    Widget*                       mHoveredWidget;
+    Widget*                       mClickedWidget = nullptr;
+    Widget*                       mHoveredWidget = nullptr;
+
+    fs::path                      mSettingsFilePath;
+    std::shared_ptr<Settings>     mSettings;      
+
 
     auto CreateGraphicsResources  () -> HRESULT;
     auto DiscardGraphicsResources () -> void;
@@ -54,6 +63,29 @@ class ImpulseApp : public Window
 
     // Get widget that is hit by @point.
     auto HitTest (D2D_POINT_2F point) -> Widget*;
+
+    // Events.
+    auto Timer_Timeout        () -> void;
+    auto ButtonClose_Click    () -> void;
+    auto ButtonSettings_Click () -> void;
+    auto ButtonPause_Click    () -> void;
+    auto ButtonInfo_Click     () -> void;
+
+    // Update.
+    auto UpdatePauseButton () -> void;
+    auto UpdateTaskStatic  () -> void;
+    auto UpdateStateStatic () -> void;
+
+    // Manipulate state.
+    auto ImpulseWork       () -> void;
+    auto ImpulseShortBreak () -> void;
+    auto ImpulseLongBreak  () -> void;
+    auto ImpulsePause      () -> void;
+    auto ImpulseInactive   () -> void;
+
+    // Settings.
+    auto LoadSettings () -> bool;
+    auto SaveSettings () -> bool;
 
     // Inherited via Window
     virtual auto OnCreate  () -> LRESULT override;
@@ -78,7 +110,14 @@ class ImpulseApp : public Window
     virtual auto ClassName () const -> const wchar_t* override { return L"ImpulseApp_WndClass"; }
 
 public:
-    ImpulseApp  () = default;
+    ImpulseApp ()
+        : mSettings (std::make_shared<Settings>())
+    {
+        auto appData = GetAppDataPath() / L"Impulse";
+        fs::create_directory(appData);
+    
+        mSettingsFilePath = appData / "Impulse.json";
+    }
     ~ImpulseApp () = default;
 
     auto Init    (HINSTANCE hInstance) -> bool;
