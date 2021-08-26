@@ -2,9 +2,67 @@
 #include "Button.hpp"
 
 #include "Utility.hpp"
+
+#include <string>
 #include <spdlog/spdlog.h>
 
 namespace Impulse {
+
+auto Button::FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool
+{
+    auto hr         = S_OK;
+    //auto length     = mTextFormat->GetFontFamilyNameLength();
+    //auto familyName = std::wstring(length + 1, L'\0');
+    //
+    //hr = mTextFormat->GetFontFamilyName(familyName.data(), length + 1); // +1 for NULL char
+    //if (FAILED(hr))
+    //{
+    //    spdlog::error("GetFontFamilyName() failed: {}", HResultToString(hr));
+    //    return false;
+    //}
+
+    //auto newTextFormat = ComPtr<IDWriteTextFormat>();
+    //hr = pDWriteFactory->CreateTextFormat(
+    //    familyName.c_str(),
+    //    nullptr,
+    //    mTextFormat->GetFontWeight(),
+    //    mTextFormat->GetFontStyle(),
+    //    mTextFormat->GetFontStretch(),
+    //    size,
+    //    L"",
+    //    newTextFormat.GetAddressOf()
+    //);
+    //if (FAILED(hr))
+    //{
+    //    spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+    //    return false;
+    //}
+
+    //mTextFormat.Reset();
+    //mTextFormat = std::move(newTextFormat);
+
+    //mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    //mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    hr = pDWriteFactory->CreateTextLayout(
+        mText.c_str(),
+        mText.length(),
+        mTextFormat.Get(),
+        mSize.width,
+        mSize.height,
+        mTextLayout.GetAddressOf()
+    );
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateTextLayout() failed: {}", HResultToString(hr));
+        return false;
+    }
+
+    mTextLayout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    mTextLayout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    return true;
+}
 
 auto Button::HitTest (D2D_POINT_2F point) -> bool
 {
@@ -17,14 +75,34 @@ auto Button::HitTest (D2D_POINT_2F point) -> bool
 
 auto Button::Draw (ID2D1RenderTarget* pRenderTarget) -> void
 {
+
+
     auto draw = [&](ComPtr<ID2D1SolidColorBrush> textBrush, ComPtr<ID2D1SolidColorBrush> outlineBrush)
     {
-        pRenderTarget->DrawRectangle(Rect(), outlineBrush.Get());
-        pRenderTarget->DrawTextW(
-            mText.c_str(),
-            mText.length(),
-            mTextFormat.Get(),
-            Rect(),
+        if (mButtonOutline)
+        {
+            if (mRoundedCorners)
+            {
+                auto rr = D2D1::RoundedRect(Rect(), 4.0f, 4.0f);
+                pRenderTarget->DrawRoundedRectangle(rr, outlineBrush.Get());
+            }
+            else
+            {
+                pRenderTarget->DrawRectangle(Rect(), outlineBrush.Get());
+            }
+        }
+
+        //pRenderTarget->DrawTextW(
+        //    mText.c_str(),
+        //    mText.length(),
+        //    mTextFormat.Get(),
+        //    Rect(),
+        //    textBrush.Get(),
+        //    D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
+        //);
+        pRenderTarget->DrawTextLayout(
+            mPosition,
+            mTextLayout.Get(),
             textBrush.Get(),
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
         );
@@ -100,6 +178,20 @@ auto Button::Create (
     button.mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     button.mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
+    hr = pDWriteFactory->CreateTextLayout(
+        button.mText.c_str(),
+        button.mText.length(),
+        button.mTextFormat.Get(),
+        button.mSize.width,
+        button.mSize.height,
+        button.mTextLayout.GetAddressOf()
+    );
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateTextLayout() failed: {}", HResultToString(hr));
+        return nullptr;
+    }
+
     auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
     {
         return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
@@ -120,6 +212,10 @@ auto Button::Create (
         spdlog::error("CreateSolidColorBrush() failed: {}", HResultToString(hr));
         return nullptr;
     }
+
+    button.mButtonOutline  = desc.buttonOutline;
+    button.mRoundedCorners = desc.roundedCorners;
+    button.mRoundedRadius  = desc.roundedRadius;
 
     spdlog::debug("Button created");
 

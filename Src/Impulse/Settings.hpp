@@ -36,15 +36,30 @@ constexpr auto MINUTES (const uint32_t m)
     return m * 60;
 }
 
+enum class WindowPosition : unsigned char
+{
+    Auto,
+    LeftTop,
+    LeftEdge,
+    LeftBottom,
+    CenterTop,
+    Center,
+    CenterBottom,
+    RightTop,
+    RightEdge,
+    RightBottom
+};
+
 class Settings
 {
 public:
-    uint32_t     WorkDuration        = 10;//MINUTES(25);
-    uint32_t     ShortBreakDuration  = 4;//MINUTES(5);
-    uint32_t     LongBreakDuration   = 8;//MINUTES(15);
-    uint32_t     LongBreakAfter      = 4;
-    bool         AutoStartTimer      = false;
-    std::wstring TaskName            = L"";
+    uint32_t       WorkDuration        = 10;//MINUTES(25);
+    uint32_t       ShortBreakDuration  = 4;//MINUTES(5);
+    uint32_t       LongBreakDuration   = 8;//MINUTES(15);
+    uint32_t       LongBreakAfter      = 4;
+    bool           AutoStartTimer      = false;
+    std::wstring   TaskName            = L"";
+    WindowPosition WindowPosition      = WindowPosition::Auto;
 
     // Internal (don't save).
     ImpulseState CurrentState        = ImpulseState::Inactive;

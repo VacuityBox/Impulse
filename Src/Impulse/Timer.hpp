@@ -49,10 +49,6 @@ private:
     int64_t       mDuration    = 0;                // in seconds
     bool          mPaused      = true;
 
-    ComPtr<IDWriteTextFormat>    mTimerTextFormat;
-    ComPtr<IDWriteTextFormat>    mTopTextFormat;
-    ComPtr<IDWriteTextFormat>    mBottomTextFormat;
-
     ComPtr<ID2D1SolidColorBrush> mOuterCircleBrush;
     ComPtr<ID2D1SolidColorBrush> mOuterOutlineBrush;
     ComPtr<ID2D1SolidColorBrush> mInnerCircleBrush;
@@ -77,6 +73,12 @@ public:
     auto Position    (float x, float y)  { mCenter.x = x; mCenter.y = y; }
     auto OuterRadius (float r)           { mOuterRadius = r; }
     auto InnerRadius (float r)           { mInnerRadius = r; }
+    auto OuterStroke (float s)           { mOuterStroke = s; }
+    auto InnerStroke (float s)           { mInnerStroke = s; }
+
+    auto GetTopStatic    () { return mStaticTop.get(); }
+    auto GetTimerStatic  () { return mStaticTimer.get(); }
+    auto GetBottomStatic () { return mStaticBottom.get(); }
 
     const auto Rect  () const
     {

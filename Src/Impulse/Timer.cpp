@@ -123,6 +123,8 @@ auto Timer::Create (
     timer->mCenter      = desc.center;
     timer->mOuterRadius = desc.outerRadius;
     timer->mInnerRadius = desc.innerRadius;
+    timer->mOuterStroke = desc.outerStroke;
+    timer->mInnerStroke = desc.innerStroke;
 
     // Create Timer Text.
     auto rect   = timer->Rect();

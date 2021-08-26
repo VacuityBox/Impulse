@@ -26,7 +26,7 @@ public:
         D2D_SIZE_F          size                 = D2D1::SizeF();
         const WCHAR*        text                 = L"StaticText";
 
-        const WCHAR*        font                 = L"SegoeUI";
+        const WCHAR*        font                 = L"Segoe UI";
         FLOAT               fontSize             = 11.0f;
         DWRITE_FONT_WEIGHT  fontWeight           = DWRITE_FONT_WEIGHT_NORMAL;
         DWRITE_FONT_STYLE   fontStyle            = DWRITE_FONT_STYLE_NORMAL;
@@ -45,6 +45,7 @@ private:
     std::wstring mText;
 
     ComPtr<IDWriteTextFormat>    mTextFormat;
+    ComPtr<IDWriteTextLayout>    mTextLayout;
 
     ComPtr<ID2D1SolidColorBrush> mDefaultTextBrush;
     ComPtr<ID2D1SolidColorBrush> mHoverTextBrush;
@@ -56,9 +57,11 @@ public:
     StaticText  () = default;
     ~StaticText () = default;
 
-    auto Position (float x, float y)  { mPosition.x = x; mPosition.y  = y; }
+    auto Position (float x, float y)  { mPosition.x = x; mPosition.y = y; }
     auto Size     (float w, float h)  { mSize.width = w; mSize.height = h; }
     auto Text     (std::wstring text) { mText = std::move(text); }
+
+    auto FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool;
 
     const auto  Position () const { return mPosition; }
     const auto  Size     () const { return mSize; }

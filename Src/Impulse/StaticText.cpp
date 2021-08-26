@@ -6,6 +6,45 @@
 
 namespace Impulse {
 
+auto StaticText::FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool
+{
+    auto hr         = S_OK;
+    auto length     = mTextFormat->GetFontFamilyNameLength();
+    auto familyName = std::wstring(length + 1, L'\0');
+    
+    hr = mTextFormat->GetFontFamilyName(familyName.data(), length + 1); // +1 for NULL char
+    if (FAILED(hr))
+    {
+        spdlog::error("GetFontFamilyName() failed: {}", HResultToString(hr));
+        return false;
+    }
+
+    auto newTextFormat = ComPtr<IDWriteTextFormat>();
+    hr = pDWriteFactory->CreateTextFormat(
+        familyName.c_str(),
+        nullptr,
+        mTextFormat->GetFontWeight(),
+        mTextFormat->GetFontStyle(),
+        mTextFormat->GetFontStretch(),
+        size,
+        L"",
+        newTextFormat.GetAddressOf()
+    );
+    if (FAILED(hr))
+    {
+        spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+        return false;
+    }
+
+    mTextFormat.Reset();
+    mTextFormat = std::move(newTextFormat);
+
+    mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    return true;
+}
+
 auto StaticText::HitTest (D2D_POINT_2F point)  -> bool
 {
     const auto rect = Rect();

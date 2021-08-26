@@ -45,7 +45,6 @@ class ImpulseApp : public Window
     fs::path                      mSettingsFilePath;
     std::shared_ptr<Settings>     mSettings;      
 
-
     auto CreateGraphicsResources  () -> HRESULT;
     auto DiscardGraphicsResources () -> void;
     auto CalculateLayout          () -> void;

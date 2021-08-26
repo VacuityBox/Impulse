@@ -4,6 +4,150 @@
 #include "Utility.hpp"
 
 #include <fstream>
+#include <tuple>
+
+#include <shellapi.h>
+
+namespace {
+
+auto CalculateWindowPositionAndSize (
+    Impulse::WindowPosition windowPosition,
+    float originalWidth,
+    float originalHeight,
+    float originalPadding,
+    float dpi = 96.f
+) -> std::tuple<D2D1_POINT_2U, D2D1_SIZE_U>
+{
+    // Get primary monitor.
+    auto monitor = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
+    auto info    = MONITORINFO{ 0 };
+    info.cbSize  = sizeof(MONITORINFO);
+    
+    if (!GetMonitorInfoW(monitor, &info))
+    {
+        spdlog::error("GetMonitorInfoW() failed");
+        return std::tuple(
+            D2D1::Point2U(originalPadding, originalPadding),
+            D2D1::SizeU(originalWidth, originalHeight)
+        );
+    }
+
+    // Re-calculate with dpi in mind.
+    const auto windowWidth   = ceil(originalWidth * dpi / 96.f);
+    const auto windowHeight  = ceil(originalHeight * dpi / 96.f);
+    const auto windowPadding = ceil(originalPadding * dpi / 96.f);
+    
+    const auto monitorWidth  = info.rcMonitor.right - info.rcMonitor.left;
+    const auto monitorHeight = info.rcMonitor.bottom - info.rcMonitor.top;
+
+    auto x = monitorWidth - windowWidth - windowPadding;
+    auto y = monitorHeight - windowHeight - windowPadding;
+
+    switch (windowPosition)
+    {
+    case Impulse::WindowPosition::Auto:
+        // TODO: bottom right for now
+        x = monitorWidth - windowWidth - windowPadding;
+        y = monitorHeight - windowHeight - windowPadding;
+        break;
+    case Impulse::WindowPosition::LeftTop:
+        x = windowPadding;
+        y = windowPadding;
+        break;
+    case Impulse::WindowPosition::LeftEdge:
+        x = windowPadding;
+        y = (monitorHeight - windowHeight) / 2;
+        break;
+    case Impulse::WindowPosition::LeftBottom:
+        x = windowPadding;
+        y = monitorHeight - windowHeight - windowPadding;
+        break;
+    case Impulse::WindowPosition::CenterTop:
+        x = (monitorWidth - windowWidth) / 2;
+        y = windowPadding;
+        break;
+    case Impulse::WindowPosition::Center:
+        x = (monitorWidth - windowWidth) / 2;
+        y = (monitorHeight - windowHeight) / 2;
+        break;
+    case Impulse::WindowPosition::CenterBottom:
+        x = (monitorWidth - windowWidth) / 2;
+        y = monitorHeight - windowHeight - windowPadding;
+        break;
+    case Impulse::WindowPosition::RightTop:
+        x = monitorWidth - windowWidth - windowPadding;
+        y = windowPadding;
+        break;
+    case Impulse::WindowPosition::RightEdge:
+        x = monitorWidth - windowWidth - windowPadding;
+        y = (monitorHeight - windowHeight) / 2;
+        break;
+    case Impulse::WindowPosition::RightBottom:
+        x = monitorWidth - windowWidth - windowPadding;
+        y = monitorHeight - windowHeight - windowPadding;
+        break;
+    }
+
+    auto abd = APPBARDATA{0};
+    abd.cbSize = sizeof(PAPPBARDATA);
+
+    if (SHAppBarMessage(ABM_GETTASKBARPOS, &abd))
+    {
+        const auto dx = abd.rc.right - abd.rc.left;
+        const auto dy = abd.rc.bottom - abd.rc.top;
+
+        switch (abd.uEdge)
+        {
+        case ABE_LEFT:
+            if (windowPosition == Impulse::WindowPosition::LeftTop
+            ||  windowPosition == Impulse::WindowPosition::LeftEdge
+            ||  windowPosition == Impulse::WindowPosition::LeftBottom
+               )
+            {
+                x += dx;
+            }
+            break;
+            
+        case ABE_TOP:
+            if (windowPosition == Impulse::WindowPosition::LeftTop
+            ||  windowPosition == Impulse::WindowPosition::CenterTop
+            ||  windowPosition == Impulse::WindowPosition::RightTop
+               )
+            {
+                y += dy;
+            }
+            break;
+
+        case ABE_RIGHT:
+            if (windowPosition == Impulse::WindowPosition::RightTop
+            ||  windowPosition == Impulse::WindowPosition::RightEdge
+            ||  windowPosition == Impulse::WindowPosition::RightBottom
+               )
+            {
+                x -= dx;
+            }
+            break;
+            
+        case ABE_BOTTOM:
+            if (windowPosition == Impulse::WindowPosition::LeftBottom
+            ||  windowPosition == Impulse::WindowPosition::CenterBottom
+            ||  windowPosition == Impulse::WindowPosition::RightBottom
+               )
+            {
+                y -= dy;
+            }
+            break;
+        }
+    }
+    else
+    {
+        spdlog::warn("SHAppBarMessage() failed, ignoring taskbar when positioning window");
+    }
+    
+    return std::tuple(D2D1::Point2U(x, y), D2D1::SizeU(windowWidth, windowHeight));
+}
+
+}
 
 namespace Impulse {
 
@@ -62,8 +206,104 @@ auto ImpulseApp::DiscardGraphicsResources () -> void
 
 auto ImpulseApp::CalculateLayout () -> void
 {
+    auto dpi = GetDpiForWindow(mWindowHandle);
+    if (dpi == 0)
+    {
+        spdlog::warn("GetDpiForWindow() failed, using default value (96)");
+        dpi = 96;
+    }
+
+    auto [position, size] = CalculateWindowPositionAndSize(
+        mSettings->WindowPosition, 450.f, 330.f, 20.f, dpi
+    );
+
+#if defined(NDEBUG)
+    SetWindowPos(
+        mWindowHandle, HWND_TOP, position.x, position.y, size.width, size.height, SWP_NOACTIVATE
+    );
+#endif
+
+    const auto rt = mRenderTarget->GetSize();
+
+    const auto buttonWidth    = ceil(32.f * dpi / 96.f);
+    const auto buttonHeight   = ceil(32.f * dpi / 96.f);
+    const auto buttonPaddingX = ceil(5.f * dpi / 96.f);
+    const auto buttonPaddingY = ceil(5.f * dpi / 96.f);
+    const auto buttonFontSize = ceil(22.f * dpi / 96.f);
+
+    const auto staticTopPadding    = ceil(5.f * dpi / 96.f);
+    const auto staticBottomPadding = ceil(5.f * dpi / 96.f);
+    const auto staticStateFontSize = ceil(24.f * dpi / 96.f);
+    const auto staticTaskFontSize  = ceil(20.f * dpi / 96.f);
+
+    const auto timerPadding          = ceil(55.f * dpi / 96.f);
+    const auto timerOuterRadius      = (std::min(rt.width, rt.height) / 2.f) - timerPadding;
+    const auto timerInnerRadius      = timerOuterRadius - ceil(25.f * dpi / 96.f); // TODO use some ratio mby
+    const auto timerStroke           = ceil(2.f * dpi / 96.f);
+    const auto timerFontSize         = ceil(40.f * dpi / 96.f);
+    const auto timerTopFontSize      = ceil(16.f * dpi / 96.f);
+    const auto timerBottomFontSize   = ceil(16.f * dpi / 96.f);
+    const auto timerTopTextHeight    = ceil(32.f * dpi / 96.f);
+    const auto timerBottomTextHeight = ceil(32.f * dpi / 96.f);
+
     if (mRenderTarget)
     {
+        // Calculate button position/size.
+        const auto brx = rt.width - buttonWidth - buttonPaddingX;
+        const auto bry = rt.height - buttonHeight - buttonPaddingY;
+
+        mButtonSettings->Position(buttonPaddingX, buttonPaddingY);
+        mButtonSettings->Size(buttonWidth, buttonHeight);
+        mButtonSettings->FontSize(buttonFontSize, mDWriteFactory.Get());
+
+        mButtonClose->Position(brx, buttonPaddingY);
+        mButtonClose->Size(buttonWidth, buttonHeight);
+        mButtonClose->FontSize(buttonFontSize, mDWriteFactory.Get());
+
+        mButtonPause->Position(buttonPaddingX, bry);
+        mButtonPause->Size(buttonWidth, buttonHeight);
+        mButtonPause->FontSize(buttonFontSize, mDWriteFactory.Get());
+
+        mButtonInfo->Position(brx, bry);
+        mButtonInfo->Size(buttonWidth, buttonHeight);
+        mButtonInfo->FontSize(buttonFontSize, mDWriteFactory.Get());
+
+        // Calculate timer position/size.
+        const auto cx = rt.width/2;
+        const auto cy = rt.height/2;
+        mTimerWidget->Position(cx, cy);
+        mTimerWidget->OuterRadius(timerOuterRadius);
+        mTimerWidget->InnerRadius(timerInnerRadius);
+        mTimerWidget->OuterStroke(timerStroke);
+        mTimerWidget->InnerStroke(timerStroke);
+
+        auto timerRect = mTimerWidget->Rect();
+        auto timerText = mTimerWidget->GetTimerStatic();
+        timerText->Position(timerRect.left, timerRect.top);
+        timerText->Size(2.f * timerOuterRadius, 2.f * timerOuterRadius);
+        timerText->FontSize(timerFontSize, mDWriteFactory.Get());
+
+        auto timerTop = mTimerWidget->GetTopStatic();
+        timerTop->Position(timerRect.left, cy - ceil(64.f * dpi / 96.f)); // TODO use ratio
+        timerTop->Size(timerRect.right - timerRect.left, timerTopTextHeight);
+        timerTop->FontSize(timerTopFontSize, mDWriteFactory.Get());
+
+        auto timerBottom = mTimerWidget->GetBottomStatic();
+        timerBottom->Position(timerRect.left, cy + ceil(32.f * dpi / 96.f)); // TODO use ratio
+        timerBottom->Size(timerRect.right - timerRect.left, timerBottomTextHeight);
+        timerBottom->FontSize(timerBottomFontSize, mDWriteFactory.Get());
+
+        // Calculate static texts.
+        const auto slx = buttonWidth + 2 * buttonPaddingX;
+        const auto slw = (rt.width - (2 * (buttonWidth + 2 * buttonPaddingX)));
+
+        mStaticImpulseState->Position(slx, staticTopPadding);
+        mStaticImpulseState->Size(slw, buttonHeight);
+        mStaticImpulseState->FontSize(staticStateFontSize, mDWriteFactory.Get());
+
+        mStaticCurrentTask->Position(slx, rt.height - staticBottomPadding - buttonHeight);
+        mStaticCurrentTask->Size(slw, buttonHeight);
+        mStaticCurrentTask->FontSize(staticTaskFontSize, mDWriteFactory.Get());
     }
 }
 
@@ -92,7 +332,7 @@ auto ImpulseApp::CreateButtons () -> HRESULT
     desc.activeOutlineColor   = D2D1::ColorF(D2D1::ColorF::Cyan);
     desc.disabledTextColor    = D2D1::ColorF(D2D1::ColorF::Gray);
     desc.disabledOutlineColor = D2D1::ColorF(D2D1::ColorF::Gray);
-
+    
     {
         desc.text     = L"⚙️";
         desc.position = D2D1::Point2F(padding, padding);
@@ -538,7 +778,7 @@ auto ImpulseApp::OnCreate () -> LRESULT
 
         spdlog::debug("Successfully created D2D Factory");
     }
-
+    
     // Create DWriteFactory.
     {
         spdlog::debug("Creating DWriteFactory");
@@ -707,6 +947,31 @@ auto ImpulseApp::OnTimer () -> LRESULT
 
 auto ImpulseApp::CustomDispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
 {
+    if (message == WM_DPICHANGED)
+    {
+        if (mRenderTarget != NULL)
+        {
+            auto dpi = GetDpiForWindow(mWindowHandle);
+            if (dpi == 0)
+            {
+                spdlog::warn("GetDpiForWindow() failed, using default value (96)");
+                dpi = 96;
+            }
+
+            spdlog::info("Dpi changed, new dpi ({})", dpi);
+
+            auto [position, size] = CalculateWindowPositionAndSize(
+                mSettings->WindowPosition, 450.f, 330.f, 20.f, dpi
+            );
+
+        //#if defined(NDEBUG)
+            SetWindowPos(
+                mWindowHandle, HWND_TOP, position.x, position.y, size.width, size.height, SWP_NOACTIVATE
+            );
+        //#endif
+        }
+    }
+
     return DefWindowProcW(mWindowHandle, message, wParam, lParam);
 }
 
@@ -722,34 +987,43 @@ auto ImpulseApp::Init (HINSTANCE hInstance) -> bool
 {
     spdlog::info("Initializing Impulse");
 
-    // Calculate start position.
-    const auto width  = 450;
-    const auto height = 330;
-    const auto padding = 20;
-    
-    auto monitor = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
-    auto info    = MONITORINFO{ 0 };
-    info.cbSize = sizeof(MONITORINFO);
-    
-    if (!GetMonitorInfoW(monitor, &info))
+    // Load Settings.
     {
-        spdlog::error("GetMonitorInfoW() failed");
-        return false;
+        // Create default settings file if not exists.
+        if (!fs::exists(mSettingsFilePath))
+        {
+            spdlog::info("Settings file not found, creating default one");
+            SaveSettings();
+        }
+        else
+        {
+            if (!LoadSettings())
+            {
+                return false;
+            }
+        }
     }
 
-    const auto monitorWidth  = info.rcWork.right - info.rcWork.left;
-    const auto monitorHeight = info.rcWork.bottom - info.rcWork.top;
+    // Create window.
+    auto [position, size] = CalculateWindowPositionAndSize(
+        WindowPosition::Auto, 450.f, 330.f, 20.f
+    );
 
-    const auto x = monitorWidth - width - padding;
-    const auto y = monitorHeight - height - padding;
-
-#if !defined(_DEBUG)
+    const auto ex = WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
+#if defined(NDEBUG)
     const auto style = WS_POPUP | WS_BORDER;
 #else
-    const auto style = WS_SYSMENU | WS_OVERLAPPED;
+    const auto style = WS_SYSMENU | WS_OVERLAPPED | WS_SIZEBOX;
 #endif
 
-    const auto r = InternalCreate(L"Impulse", style, 0, x, y, width, height, nullptr, hInstance);
+    const auto r = InternalCreate(
+        L"Impulse",
+        style, ex,
+        position.x, position.y,
+        size.width, size.height,
+        nullptr,
+        hInstance
+    );
     if (!r)
     {
         spdlog::error("Initialization failed");
@@ -758,11 +1032,13 @@ auto ImpulseApp::Init (HINSTANCE hInstance) -> bool
     
     ShowWindow(mWindowHandle, SW_SHOW);
     spdlog::info("Initialization finished");
+
     return true;
 }
 
 auto ImpulseApp::Release () -> void
 {
+    SaveSettings();
     InternalCleanup();
 }
 

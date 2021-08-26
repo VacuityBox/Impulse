@@ -26,7 +26,7 @@ public:
         D2D_SIZE_F          size                 = D2D1::SizeF();
         const WCHAR*        text                 = L"StaticText";
 
-        const WCHAR*        font                 = L"SegoeUI";
+        const WCHAR*        font                 = L"Segoe UI";
         FLOAT               fontSize             = 11.0f;
         DWRITE_FONT_WEIGHT  fontWeight           = DWRITE_FONT_WEIGHT_NORMAL;
         DWRITE_FONT_STYLE   fontStyle            = DWRITE_FONT_STYLE_NORMAL;
@@ -42,6 +42,10 @@ public:
         D2D_COLOR_F         focusOutlineColor    = D2D1::ColorF(D2D1::ColorF::Black);
         D2D_COLOR_F         disabledTextColor    = D2D1::ColorF(D2D1::ColorF::Black);
         D2D_COLOR_F         disabledOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
+
+        bool                buttonOutline        = false;
+        bool                roundedCorners       = false;
+        float               roundedRadius        = 4.0f;
     };
 
 private:
@@ -50,6 +54,7 @@ private:
     std::wstring mText;
 
     ComPtr<IDWriteTextFormat>    mTextFormat;
+    ComPtr<IDWriteTextLayout>    mTextLayout;
 
     ComPtr<ID2D1SolidColorBrush> mDefaultTextBrush;
     ComPtr<ID2D1SolidColorBrush> mDefaultOutlineBrush;
@@ -62,13 +67,29 @@ private:
     ComPtr<ID2D1SolidColorBrush> mDisabledTextBrush;
     ComPtr<ID2D1SolidColorBrush> mDisabledOutlineBrush;
 
+    bool  mButtonOutline  = true;
+    bool  mRoundedCorners = false;
+    float mRoundedRadius  = 1.0f;
+
 public:
     Button  () = default;
     ~Button () = default;
 
-    auto Position (float x, float y)  { mPosition.x = x; mPosition.y = y; }
-    auto Size     (float w, float h)  { mSize.width = w; mSize.height = h; }
-    auto Text     (std::wstring text) { mText = std::move(text); }
+    auto Position (float x, float y) { mPosition.x = x; mPosition.y = y; }
+    auto Size (float w, float h)
+    {
+        mSize.width = w;
+        mSize.height = h;
+        mTextLayout->SetMaxWidth(w);
+        mTextLayout->SetMaxHeight(h);
+    }
+
+    auto Text (std::wstring text)
+    {
+        mText = std::move(text);
+    }
+    
+    auto FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool;
 
     const auto& Text  () const { return mText; }
     const auto  Rect  () const

@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 
 /// Windows libraries
@@ -18,6 +19,7 @@
 #include <Windows.h>
 #include <windowsx.h>
 #include <comdef.h>
+#include <shellapi.h>
 #include <ShlObj.h>
 
 /// Direct2D
