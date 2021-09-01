@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include <d2d1.h>
+#include <d2d1_1.h>
 
 namespace {
     using namespace D2D1;
@@ -44,8 +44,8 @@ public:
         return false;
     }
 
-    virtual auto HitTest (D2D_POINT_2F point)               -> bool = 0;
-    virtual auto Draw    (ID2D1RenderTarget* pRenderTarget) -> void = 0;
+    virtual auto HitTest (D2D_POINT_2F point)                   -> bool = 0;
+    virtual auto Draw    (ID2D1DeviceContext* d2dDeviceContext) -> void = 0;
 };
 
 } // namespace Impulse

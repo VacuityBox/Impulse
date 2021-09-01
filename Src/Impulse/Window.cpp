@@ -1,71 +1,141 @@
 #include "PCH.hpp"
 #include "Window.hpp"
-
 #include "Utility.hpp"
 
 #include <spdlog/spdlog.h>
-
-#include <windowsx.h>
+#include <Windows.h>
 
 namespace Impulse
 {
+
+Window::~Window ()
+{
+    UnregisterClassW(mClassName.c_str(), mInstanceHandle);
+}
 
 auto Window::Dispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
 {
     // Return 0 when handling message, DefWindowProc otherwise.
     switch (message)
     {
-    case WM_CREATE:  return OnCreate();
-    case WM_DESTROY: return OnDestroy();
-    case WM_COMMAND: return OnCommand(wParam, lParam);
-    case WM_PAINT:   return OnPaint(wParam, lParam);
-    case WM_SIZE:    return OnResize(wParam, lParam);
-    case WM_KEYUP:   return OnKeyUp(static_cast<UINT>(wParam));
-    case WM_KEYDOWN: return OnKeyDown(static_cast<UINT>(wParam));
-    case WM_TIMER:   return OnTimer();
+    case WM_CLOSE:
+        Close();
+        return 0;
+
+    case WM_SIZE:
+        Resize(static_cast<UINT>(wParam), static_cast<UINT>(lParam));
+        return 0;
+
+    case WM_MOVE:
+        Move(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        return 0;
+
+    case WM_DPICHANGED:
+        DpiChange();
+        return 0;
+
+    case WM_KEYUP:
+        KeyUp(static_cast<UINT>(wParam));
+        return 0;
+
+    case WM_KEYDOWN:
+        KeyDown(static_cast<UINT>(wParam));
+        return 0;    
     
     case WM_MOUSEMOVE:
-        return OnMouseMove(
-            GET_X_LPARAM(lParam),
-            GET_Y_LPARAM(lParam),
-            static_cast<DWORD>(wParam)
-        );
+        MouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        return 0;
 
     case WM_LBUTTONUP:
-        return OnLeftMouseButtonUp(
-            GET_X_LPARAM(lParam),
-            GET_Y_LPARAM(lParam),
-            static_cast<DWORD>(wParam)
-        );
+        MouseUp(MouseButton::Left, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        return 0;
 
     case WM_LBUTTONDOWN:
-        return OnLeftMouseButtonDown(
-            GET_X_LPARAM(lParam),
-            GET_Y_LPARAM(lParam),
-            static_cast<DWORD>(wParam)
-        );
+        MouseDown(MouseButton::Left, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        return 0;
 
     case WM_RBUTTONUP:
-        return OnRightMouseButtonUp(
-            GET_X_LPARAM(lParam),
-            GET_Y_LPARAM(lParam),
-            static_cast<DWORD>(wParam)
-        );
+        MouseUp(MouseButton::Right, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        return 0;
 
     case WM_RBUTTONDOWN:
-        return OnRightMouseButtonDown(
-            GET_X_LPARAM(lParam),
-            GET_Y_LPARAM(lParam),
-            static_cast<DWORD>(wParam)
-        );
+        MouseDown(MouseButton::Right, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        return 0;
     }
     
-    return CustomDispatch(message, wParam, lParam);
+    return CustomMessageHandler(message, wParam, lParam);
 }
 
-auto Window::CustomDispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
+auto Window::Close () -> void
 {
-    return DefWindowProcW(mWindowHandle, message, wParam, lParam);
+    OnClose();
+}
+
+auto Window::Resize (UINT32 width, UINT32 height) -> void
+{
+    mWindowSize = D2D1::SizeU(width, height);
+    OnResize(width, height);
+}
+
+auto Window::Move (int x, int y) -> void
+{
+    mWindowPosition = D2D1::Point2L(x, y);
+    OnMove(x, y);
+}
+
+auto Window::DpiChange () -> void
+{
+    auto dpi = GetDpiForWindow(mWindowHandle);
+    if (dpi == 0)
+    {
+        spdlog::warn("GetDpiForWindow() failed, using default dpi value (96)");
+        dpi = 96;
+    }
+
+    mDpi = dpi;
+    OnDpiChange(dpi);
+}
+
+auto Window::KeyDown (UINT key) -> void
+{
+    if (key < mKeys.size())
+    {
+        mKeys[key] = true;
+    }
+
+    OnKeyDown(key);
+}
+
+auto Window::KeyUp (UINT key) -> void
+{
+    if (key < mKeys.size())
+    {
+        mKeys[key] = false;
+    }
+
+    OnKeyUp(key);
+}
+
+auto Window::MouseDown (MouseButton button, int x, int y) -> void
+{
+    mMouseButtons[static_cast<unsigned char>(button)] = true;
+
+    OnMouseDown(button, x, y);
+}
+
+auto Window::MouseUp (MouseButton button, int x, int y) -> void
+{
+    mMouseButtons[static_cast<unsigned char>(button)] = false;
+
+    OnMouseUp(button, x, y);
+}
+
+auto Window::MouseMove (int x, int y) -> void
+{
+    mMousePosition.x = x;
+    mMousePosition.y = y;
+
+    OnMouseMove(x, y);
 }
 
 auto Window::WindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
@@ -94,6 +164,64 @@ auto Window::WindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     return DefWindowProcW(hWnd, message, wParam, lParam);
 }
 
+auto Window::Init (Window::Desc desc) -> bool
+{
+    auto hInstance = desc.instanceHandle != nullptr ? desc.instanceHandle : GetModuleHandleW(nullptr);
+    if (!hInstance)
+    {
+        spdlog::error("hInstance is null");
+        return false;
+    }
+
+    mInstanceHandle = desc.instanceHandle;
+    mClassName      = desc.className;
+
+    auto wcex          = WNDCLASSEX{ 0 };
+    wcex.cbSize        = sizeof(wcex);
+    wcex.hInstance     = mInstanceHandle;
+    wcex.lpfnWndProc   = WindowProc;
+    wcex.lpszClassName = mClassName.c_str();
+    wcex.style         = CS_VREDRAW | CS_HREDRAW;
+
+    if (!RegisterClassExW(&wcex))
+    {
+        spdlog::error("RegisterClassExW() failed: {}", GetLastErrorMessage());
+        return false;
+    }
+
+    mWindowTitle    = desc.title;
+    mWindowPosition = desc.position;
+    mWindowSize     = desc.size;
+
+    mWindowHandle = CreateWindowExW(
+        desc.exstyle,
+        mClassName.c_str(),
+        mWindowTitle.c_str(),
+        desc.style,
+        mWindowPosition.x,
+        mWindowPosition.y,
+        mWindowSize.width,
+        mWindowSize.height,
+        desc.parentHandle,
+        nullptr,
+        mInstanceHandle,
+        this
+    );
+
+    if (!mWindowHandle)
+    {
+        spdlog::error("CreateWindowExW() failed: {}", GetLastErrorMessage());
+        return false;
+    }
+
+    if (!desc.invisible)
+    {
+        ShowWindow(mWindowHandle, SW_SHOW);
+    }
+
+    return true;
+}
+
 auto Window::MainLoop () -> int
 {
     // Main message loop.
@@ -116,63 +244,6 @@ auto Window::MainLoop () -> int
     }
 
     return static_cast<int>(msg.wParam);
-}
-
-auto Window::InternalCreate (
-    std::wstring_view title,
-    DWORD             style,
-    DWORD             styleEx,
-    int               x,
-    int               y,
-    int               width,
-    int               height,
-    HWND              parent,
-    HINSTANCE         hInstance
-) -> bool
-{
-    mInstanceHandle = hInstance;
-
-    auto wcex          = WNDCLASSEX{ 0 };
-    wcex.cbSize        = sizeof(wcex);
-    wcex.hInstance     = mInstanceHandle;
-    wcex.lpfnWndProc   = WindowProc;
-    wcex.lpszClassName = ClassName();
-    wcex.style         = CS_VREDRAW | CS_HREDRAW;
-
-    if (!RegisterClassExW(&wcex))
-    {
-        spdlog::error("RegisterClassExW() failed: {}", GetLastErrorMessage());
-        return false;
-    }
-
-    mWindowHandle = CreateWindowExW(
-        styleEx,
-        wcex.lpszClassName,
-        title.data(),
-        style,
-        x,
-        y,
-        width,
-        height,
-        parent,
-        nullptr,
-        mInstanceHandle,
-        this
-    );
-
-    if (!mWindowHandle)
-    {
-        spdlog::error("CreateWindowExW() failed: {}", GetLastErrorMessage());
-        return false;
-    }
-
-    return true;
-}
-
-auto Window::InternalCleanup () -> void
-{
-    InternalKillTimer();
-    UnregisterClassW(ClassName(), mInstanceHandle);
 }
 
 } // namespace Impulse

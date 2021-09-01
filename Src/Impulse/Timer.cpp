@@ -48,7 +48,7 @@ auto Timer::HitTest (D2D_POINT_2F point) -> bool
     return d <= mOuterRadius;
 }
 
-auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
+auto Timer::Draw (ID2D1DeviceContext* d2dDeviceContext) -> void
 {
     // Draw Ellipse.
     const auto outer = OuterEllipse();
@@ -61,10 +61,10 @@ auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
         ID2D1SolidColorBrush* pInnerOutlineBrush
         )
     {
-        pRenderTarget->DrawEllipse(outer, pOuterOutlineBrush, mOuterStroke);
-        pRenderTarget->FillEllipse(outer, pOuterBrush);
-        pRenderTarget->DrawEllipse(inner, pInnerOutlineBrush, mInnerStroke);
-        pRenderTarget->FillEllipse(inner, pInnerBrush);
+        d2dDeviceContext->DrawEllipse(outer, pOuterOutlineBrush, mOuterStroke);
+        d2dDeviceContext->FillEllipse(outer, pOuterBrush);
+        d2dDeviceContext->DrawEllipse(inner, pInnerOutlineBrush, mInnerStroke);
+        d2dDeviceContext->FillEllipse(inner, pInnerBrush);
     };
 
 
@@ -78,7 +78,7 @@ auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
     // Draw Texts.
     if (mPaused)
     {
-        mStaticTop->Draw(pRenderTarget);
+        mStaticTop->Draw(d2dDeviceContext);
     }
 
     const auto bottomText = 
@@ -87,31 +87,31 @@ auto Timer::Draw (ID2D1RenderTarget* pRenderTarget) -> void
         std::to_wstring(mSettings->LongBreakAfter)
         ;
     mStaticBottom->Text(bottomText);
-    mStaticBottom->Draw(pRenderTarget);
+    mStaticBottom->Draw(d2dDeviceContext);
 
     const auto text = DurationToString();
     mStaticTimer->Text(text);
-    mStaticTimer->Draw(pRenderTarget);
+    mStaticTimer->Draw(d2dDeviceContext);
 }
 
 auto Timer::Create (
     const Timer::Desc&        desc,
-    ID2D1RenderTarget*        pRenderTarget,
-    IDWriteFactory*           pDWriteFactory,
+    ID2D1DeviceContext*       d2dDeviceContext,
+    IDWriteFactory*           dwriteFactory,
     std::shared_ptr<Settings> settingsPtr
 ) -> std::unique_ptr<Timer>
 {
     spdlog::debug("Creating Timer");
 
-    if (!pRenderTarget)
+    if (!d2dDeviceContext)
     {
-        spdlog::error("pRenderTarget is null");
+        spdlog::error("d2dDeviceContext is null");
         return nullptr;
     }
 
-    if (!pDWriteFactory)
+    if (!dwriteFactory)
     {
-        spdlog::error("pDWriteFactory is null");
+        spdlog::error("dwriteFactory is null");
         return nullptr;
     }
 
@@ -131,7 +131,7 @@ auto Timer::Create (
     auto width  = rect.right - rect.left;
     auto height = rect.bottom - rect.top;
     {
-        timer->mStaticTimer = StaticText::Create(desc.timerTextDesc, pRenderTarget, pDWriteFactory);
+        timer->mStaticTimer = StaticText::Create(desc.timerTextDesc, d2dDeviceContext, dwriteFactory);
         if (!timer->mStaticTimer)
         {
             spdlog::error("Failed to create timer text");
@@ -143,7 +143,7 @@ auto Timer::Create (
 
     // Create Top Text.
     {
-        timer->mStaticTop = StaticText::Create(desc.topTextDesc, pRenderTarget, pDWriteFactory);
+        timer->mStaticTop = StaticText::Create(desc.topTextDesc, d2dDeviceContext, dwriteFactory);
         if (!timer->mStaticTop)
         {
             spdlog::error("Failed to create top text");
@@ -158,7 +158,7 @@ auto Timer::Create (
 
     // Create Bottom Text.
     {
-        timer->mStaticBottom = StaticText::Create(desc.bottomTextDesc, pRenderTarget, pDWriteFactory);
+        timer->mStaticBottom = StaticText::Create(desc.bottomTextDesc, d2dDeviceContext, dwriteFactory);
         if (!timer->mStaticBottom)
         {
             spdlog::error("Failed to create bottom text");
@@ -174,7 +174,7 @@ auto Timer::Create (
 
     auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
     {
-        return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
+        return d2dDeviceContext->CreateSolidColorBrush(color, ppBrush);
     };
 
     hr = createBrush(desc.outerCircleColor , timer->mOuterCircleBrush .GetAddressOf());

@@ -54,34 +54,34 @@ auto StaticText::HitTest (D2D_POINT_2F point)  -> bool
         ;;
 }
 
-auto StaticText::Draw (ID2D1RenderTarget* pRenderTarget) -> void
+auto StaticText::Draw (ID2D1DeviceContext* d2dContext) -> void
 {
 #if defined(_DEBUG)
-    pRenderTarget->DrawRectangle(Rect(), mDefaultTextBrush.Get());
+    d2dContext->DrawRectangle(Rect(), mDefaultTextBrush.Get());
 #endif
 
-    pRenderTarget->DrawTextW(
+    d2dContext->DrawTextW(
         mText.c_str(), mText.length(), mTextFormat.Get(), Rect(), mDefaultTextBrush.Get()
     );
 }
 
 auto StaticText::Create (
     const StaticText::Desc& desc,
-    ID2D1RenderTarget*      pRenderTarget,
-    IDWriteFactory*         pDWriteFactory
+    ID2D1DeviceContext*     d2dContext,
+    IDWriteFactory*         dwriteFactory
 ) -> std::unique_ptr<StaticText>
 {
     spdlog::debug("Creating StaticText");
 
-    if (!pRenderTarget)
+    if (!d2dContext)
     {
-        spdlog::error("pRenderTarget is null");
+        spdlog::error("d2dContext is null");
         return nullptr;
     }
 
-    if (!pDWriteFactory)
+    if (!dwriteFactory)
     {
-        spdlog::error("pDWriteFactory is null");
+        spdlog::error("dwriteFactory is null");
         return nullptr;
     }
 
@@ -92,7 +92,7 @@ auto StaticText::Create (
     staticText.mSize     = desc.size;
     staticText.mText     = desc.text;
 
-    hr = pDWriteFactory->CreateTextFormat(
+    hr = dwriteFactory->CreateTextFormat(
         desc.font,
         nullptr,
         desc.fontWeight,
@@ -113,7 +113,7 @@ auto StaticText::Create (
 
     auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
     {
-        return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
+        return d2dContext->CreateSolidColorBrush(color, ppBrush);
     };
 
     hr = createBrush(desc.defaultTextColor    , staticText.mDefaultTextBrush    .GetAddressOf());

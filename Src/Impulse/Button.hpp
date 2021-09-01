@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include <d2d1.h>
+#include <d2d1_1.h>
 #include <dwrite.h>
 #include <wrl.h>
 
@@ -43,8 +43,9 @@ public:
         D2D_COLOR_F         disabledTextColor    = D2D1::ColorF(D2D1::ColorF::Black);
         D2D_COLOR_F         disabledOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
 
-        bool                buttonOutline        = false;
-        bool                roundedCorners       = false;
+        bool                forceOutline         = false;
+        bool                intelOutline         = true; // when state == [hover, active]
+        bool                roundedCorners       = true;
         float               roundedRadius        = 4.0f;
     };
 
@@ -52,6 +53,7 @@ private:
     D2D_POINT_2F mPosition = D2D1::Point2F();
     D2D_SIZE_F   mSize     = D2D1::SizeF();
     std::wstring mText;
+    float        mFontSize = 11.f;
 
     ComPtr<IDWriteTextFormat>    mTextFormat;
     ComPtr<IDWriteTextLayout>    mTextLayout;
@@ -67,8 +69,9 @@ private:
     ComPtr<ID2D1SolidColorBrush> mDisabledTextBrush;
     ComPtr<ID2D1SolidColorBrush> mDisabledOutlineBrush;
 
-    bool  mButtonOutline  = true;
-    bool  mRoundedCorners = false;
+    bool  mForceOutline   = false;
+    bool  mIntelOutline   = true;
+    bool  mRoundedCorners = true;
     float mRoundedRadius  = 1.0f;
 
 public:
@@ -78,15 +81,35 @@ public:
     auto Position (float x, float y) { mPosition.x = x; mPosition.y = y; }
     auto Size (float w, float h)
     {
-        mSize.width = w;
+        mSize.width  = w;
         mSize.height = h;
         mTextLayout->SetMaxWidth(w);
         mTextLayout->SetMaxHeight(h);
     }
 
-    auto Text (std::wstring text)
+    auto Text (std::wstring text, IDWriteFactory* pDWriteFactory)
     {
+        const auto size = mTextLayout->GetFontSize();
+
         mText = std::move(text);
+        
+        auto hr = pDWriteFactory->CreateTextLayout(
+            mText.c_str(),
+            mText.length(),
+            mTextFormat.Get(),
+            mSize.width,
+            mSize.height,
+            &mTextLayout
+        );
+        if (FAILED(hr))
+        {
+            spdlog::error("CreateTextLayout() failed: {}", (hr));
+            return;
+        }
+
+        mTextLayout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        mTextLayout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+        mTextLayout->SetFontSize(mFontSize, DWRITE_TEXT_RANGE{0, static_cast<unsigned int>(mText.length())});
     }
     
     auto FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool;
@@ -102,13 +125,13 @@ public:
         );
     }
 
-    virtual auto HitTest (D2D_POINT_2F point)               -> bool override;
-    virtual auto Draw    (ID2D1RenderTarget* pRenderTarget) -> void override;
+    virtual auto HitTest (D2D_POINT_2F point)                   -> bool override;
+    virtual auto Draw    (ID2D1DeviceContext* d2dDeviceContext) -> void override;
 
     static auto Create (
         const Button::Desc& desc,
-        ID2D1RenderTarget*  pRenderTarget,
-        IDWriteFactory*     pDWriteFactory
+        ID2D1DeviceContext* d2dDeviceContext,
+        IDWriteFactory*     dwriteFactory
     ) -> std::unique_ptr<Button>;
 };
 

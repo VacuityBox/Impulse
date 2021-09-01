@@ -2,8 +2,10 @@
 
 #include "Impulse.hpp"
 
+#include <memory>
+
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/msvc_sink.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -16,10 +18,15 @@ auto WINAPI wWinMain (
 ) -> int
 {
     // Init logger.
-    auto logger = spdlog::basic_logger_mt("ImpulseFileLog", "Impulse.log", true);
+    auto logger = spdlog::basic_logger_mt("file_logger", "Impulse.log", true);
     spdlog::set_default_logger(logger);
+    spdlog::flush_on(spdlog::level::err);
 
 #if defined(_DEBUG)
+    auto msvcSink    = std::make_shared<spdlog::sinks::windebug_sink_mt>();
+    auto debugLogger = std::make_shared<spdlog::logger>("msvc_logger", msvcSink);
+
+    spdlog::set_default_logger(debugLogger);
     spdlog::set_level(spdlog::level::level_enum::debug);
 #endif
 
@@ -30,9 +37,11 @@ auto WINAPI wWinMain (
         return 1;
     }
     
-    auto ret = impulse.MainLoop();
+    auto ret = impulse.GfxLoop();
 
     impulse.Release();
+
+    logger->flush();
 
     return ret;
 }

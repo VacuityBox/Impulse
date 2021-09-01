@@ -5,61 +5,30 @@
 
 #include <string>
 #include <spdlog/spdlog.h>
+#include <d2d1effects.h>
 
 namespace Impulse {
 
 auto Button::FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool
-{
-    auto hr         = S_OK;
-    //auto length     = mTextFormat->GetFontFamilyNameLength();
-    //auto familyName = std::wstring(length + 1, L'\0');
-    //
-    //hr = mTextFormat->GetFontFamilyName(familyName.data(), length + 1); // +1 for NULL char
-    //if (FAILED(hr))
-    //{
-    //    spdlog::error("GetFontFamilyName() failed: {}", HResultToString(hr));
-    //    return false;
-    //}
-
-    //auto newTextFormat = ComPtr<IDWriteTextFormat>();
-    //hr = pDWriteFactory->CreateTextFormat(
-    //    familyName.c_str(),
-    //    nullptr,
-    //    mTextFormat->GetFontWeight(),
-    //    mTextFormat->GetFontStyle(),
-    //    mTextFormat->GetFontStretch(),
-    //    size,
-    //    L"",
-    //    newTextFormat.GetAddressOf()
+{   
+    //auto hr = pDWriteFactory->CreateTextLayout(
+    //    mText.c_str(),
+    //    mText.length(),
+    //    mTextFormat.Get(),
+    //    mSize.width,
+    //    mSize.height,
+    //    &mTextLayout
     //);
     //if (FAILED(hr))
     //{
-    //    spdlog::error("CreateTextFormat() failed: {}", HResultToString(hr));
+    //    spdlog::error("CreateTextLayout() failed: {}", HResultToString(hr));
     //    return false;
     //}
-
-    //mTextFormat.Reset();
-    //mTextFormat = std::move(newTextFormat);
-
-    //mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-    //mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-    hr = pDWriteFactory->CreateTextLayout(
-        mText.c_str(),
-        mText.length(),
-        mTextFormat.Get(),
-        mSize.width,
-        mSize.height,
-        mTextLayout.GetAddressOf()
-    );
-    if (FAILED(hr))
-    {
-        spdlog::error("CreateTextLayout() failed: {}", HResultToString(hr));
-        return false;
-    }
-
-    mTextLayout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-    mTextLayout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+    //
+    //mTextLayout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    //mTextLayout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+    mTextLayout->SetFontSize(size, DWRITE_TEXT_RANGE{0, static_cast<unsigned int>(mText.length())});
+    mFontSize = size;
 
     return true;
 }
@@ -73,22 +42,20 @@ auto Button::HitTest (D2D_POINT_2F point) -> bool
         ;;
 }
 
-auto Button::Draw (ID2D1RenderTarget* pRenderTarget) -> void
+auto Button::Draw (ID2D1DeviceContext* d2dDeviceContext) -> void
 {
-
-
     auto draw = [&](ComPtr<ID2D1SolidColorBrush> textBrush, ComPtr<ID2D1SolidColorBrush> outlineBrush)
     {
-        if (mButtonOutline)
+        if (mForceOutline || (mIntelOutline && (mState == State::Hover || mState == State::Active)))
         {
             if (mRoundedCorners)
             {
                 auto rr = D2D1::RoundedRect(Rect(), 4.0f, 4.0f);
-                pRenderTarget->DrawRoundedRectangle(rr, outlineBrush.Get());
+                d2dDeviceContext->DrawRoundedRectangle(rr, outlineBrush.Get());
             }
             else
             {
-                pRenderTarget->DrawRectangle(Rect(), outlineBrush.Get());
+                d2dDeviceContext->DrawRectangle(Rect(), outlineBrush.Get());
             }
         }
 
@@ -100,7 +67,7 @@ auto Button::Draw (ID2D1RenderTarget* pRenderTarget) -> void
         //    textBrush.Get(),
         //    D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
         //);
-        pRenderTarget->DrawTextLayout(
+        d2dDeviceContext->DrawTextLayout(
             mPosition,
             mTextLayout.Get(),
             textBrush.Get(),
@@ -134,21 +101,21 @@ auto Button::Draw (ID2D1RenderTarget* pRenderTarget) -> void
 
 auto Button::Create (
     const Button::Desc& desc,
-    ID2D1RenderTarget*  pRenderTarget,
-    IDWriteFactory*     pDWriteFactory
+    ID2D1DeviceContext* d2dDeviceContext,
+    IDWriteFactory*     dwriteFactory
 ) -> std::unique_ptr<Button>
 {
     spdlog::debug("Creating button");
 
-    if (!pRenderTarget)
+    if (!d2dDeviceContext)
     {
-        spdlog::error("pRenderTarget is null");
+        spdlog::error("d2dDeviceContext is null");
         return nullptr;
     }
 
-    if (!pDWriteFactory)
+    if (!dwriteFactory)
     {
-        spdlog::error("pDWriteFactory is null");
+        spdlog::error("dwriteFactory is null");
         return nullptr;
     }
 
@@ -158,8 +125,9 @@ auto Button::Create (
     button.mPosition = desc.position;
     button.mSize     = desc.size;
     button.mText     = desc.text;
+    button.mFontSize = desc.fontSize;
 
-    hr = pDWriteFactory->CreateTextFormat(
+    hr = dwriteFactory->CreateTextFormat(
         desc.font,
         nullptr,
         desc.fontWeight,
@@ -178,7 +146,7 @@ auto Button::Create (
     button.mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     button.mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
-    hr = pDWriteFactory->CreateTextLayout(
+    hr = dwriteFactory->CreateTextLayout(
         button.mText.c_str(),
         button.mText.length(),
         button.mTextFormat.Get(),
@@ -194,7 +162,7 @@ auto Button::Create (
 
     auto createBrush = [&](const D2D_COLOR_F& color, ID2D1SolidColorBrush** ppBrush)
     {
-        return pRenderTarget->CreateSolidColorBrush(color, ppBrush);
+        return d2dDeviceContext->CreateSolidColorBrush(color, ppBrush);
     };
 
     hr = createBrush(desc.defaultTextColor    , button.mDefaultTextBrush    .GetAddressOf());
@@ -213,7 +181,8 @@ auto Button::Create (
         return nullptr;
     }
 
-    button.mButtonOutline  = desc.buttonOutline;
+    button.mForceOutline   = desc.forceOutline;
+    button.mIntelOutline   = desc.intelOutline;
     button.mRoundedCorners = desc.roundedCorners;
     button.mRoundedRadius  = desc.roundedRadius;
 

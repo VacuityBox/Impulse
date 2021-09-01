@@ -1,35 +1,25 @@
 #pragma once
 
+#include "D2DApp.hpp"
 #include "Button.hpp"
 #include "StaticText.hpp"
 #include "Settings.hpp"
 #include "Timer.hpp"
-#include "Window.hpp"
 
 #include <filesystem>
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#include <d2d1.h>
-#include <dwrite.h>
-#include <wrl.h>
 
 namespace {
     using namespace D2D1;
     using namespace Microsoft::WRL;
-
     namespace fs = std::filesystem;
 }
 
 namespace Impulse
 {
 
-class ImpulseApp : public Window
+class ImpulseApp : public D2DApp
 {
-    ComPtr<ID2D1Factory>          mD2DFactory;
-    ComPtr<IDWriteFactory>        mDWriteFactory;
-    ComPtr<ID2D1HwndRenderTarget> mRenderTarget;
+    bool                          mInitialzied = false;
 
     std::unique_ptr<Button>       mButtonClose;
     std::unique_ptr<Button>       mButtonSettings;
@@ -45,15 +35,15 @@ class ImpulseApp : public Window
     fs::path                      mSettingsFilePath;
     std::shared_ptr<Settings>     mSettings;      
 
-    auto CreateGraphicsResources  () -> HRESULT;
+    auto CreateGraphicsResources  () -> bool;    
     auto DiscardGraphicsResources () -> void;
-    auto CalculateLayout          () -> void;
-    auto Redraw                   () -> void { InvalidateRect(mWindowHandle, nullptr, false); }
 
+    auto CalculateLayout          () -> void;
+    
     // Create methods.
-    auto CreateButtons    () -> HRESULT;
-    auto CreateTimer      () -> HRESULT;
-    auto CreateStaticText () -> HRESULT;
+    auto CreateButtons    () -> bool;
+    auto CreateTimer      () -> bool;
+    auto CreateStaticText () -> bool;
 
     // Draw methods.
     auto DrawButtons     () -> void;
@@ -86,27 +76,25 @@ class ImpulseApp : public Window
     auto LoadSettings () -> bool;
     auto SaveSettings () -> bool;
 
-    // Inherited via Window
-    virtual auto OnCreate  () -> LRESULT override;
-    virtual auto OnDestroy () -> LRESULT override;
-    virtual auto OnCommand (WPARAM, LPARAM) -> LRESULT override { return 0; }
-    virtual auto OnPaint   (WPARAM, LPARAM) -> LRESULT override;
-    virtual auto OnResize  (WPARAM, LPARAM) -> LRESULT override;
+    // Window callbacks.
+    virtual auto OnClose     () -> void;
+    virtual auto OnDpiChange (float dpi) -> void;
 
-    virtual auto OnKeyUp   (UINT) -> LRESULT override { return 0; }
-    virtual auto OnKeyDown (UINT) -> LRESULT override { return 0; }
+    virtual auto OnMouseDown  (MouseButton button, int x, int y) -> void;
+    virtual auto OnMouseUp    (MouseButton button, int x, int y) -> void;
+    virtual auto OnMouseMove  (int x, int y)                     -> void;
 
-    virtual auto OnMouseMove            (int, int, DWORD) -> LRESULT override;
-    virtual auto OnLeftMouseButtonUp    (int, int, DWORD) -> LRESULT override;
-    virtual auto OnLeftMouseButtonDown  (int, int, DWORD) -> LRESULT override;
-    virtual auto OnRightMouseButtonUp   (int, int, DWORD) -> LRESULT override { return 0; }
-    virtual auto OnRightMouseButtonDown (int, int, DWORD) -> LRESULT override { return 0; }
+    virtual auto OnDraw       () -> void;
 
-    virtual auto OnTimer () -> LRESULT override;
+    virtual auto OnResize (UINT32 width, UINT32 height) -> void
+    {
+        D2DApp::OnResize(width, height);
 
-    virtual auto CustomDispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT override;
+        CalculateLayout();
+        Redraw();
 
-    virtual auto ClassName () const -> const wchar_t* override { return L"ImpulseApp_WndClass"; }
+        Draw();
+    }
 
 public:
     ImpulseApp ()

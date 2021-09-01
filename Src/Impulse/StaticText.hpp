@@ -76,13 +76,13 @@ public:
         );
     }
 
-    virtual auto HitTest (D2D_POINT_2F point)               -> bool override;
-    virtual auto Draw    (ID2D1RenderTarget* pRenderTarget) -> void override;
+    virtual auto HitTest (D2D_POINT_2F point)                   -> bool override;
+    virtual auto Draw    (ID2D1DeviceContext* d2dDeviceContext) -> void override;
 
     static auto Create (
         const StaticText::Desc& desc,
-        ID2D1RenderTarget*      pRenderTarget,
-        IDWriteFactory*         pDWriteFactory
+        ID2D1DeviceContext*     d2dDeviceContext,
+        IDWriteFactory*         dwriteFactory
     ) -> std::unique_ptr<StaticText>;
 };
 

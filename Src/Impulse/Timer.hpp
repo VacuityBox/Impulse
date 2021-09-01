@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include <d2d1.h>
+#include <d2d1_1.h>
 #include <dwrite.h>
 #include <wrl.h>
 
@@ -93,8 +93,8 @@ public:
     const auto OuterEllipse () const { return D2D1::Ellipse(mCenter, mOuterRadius, mOuterRadius); }
     const auto InnerEllipse () const { return D2D1::Ellipse(mCenter, mInnerRadius, mInnerRadius); }
 
-    virtual auto HitTest (D2D_POINT_2F point)               -> bool override;    
-    virtual auto Draw    (ID2D1RenderTarget* pRenderTarget) -> void override;
+    virtual auto HitTest (D2D_POINT_2F point)                   -> bool override;    
+    virtual auto Draw    (ID2D1DeviceContext* d2dDeviceContext) -> void override;
 
     auto Tick ()
     {
@@ -118,8 +118,8 @@ public:
 
     static auto Create (
         const Timer::Desc&        desc,
-        ID2D1RenderTarget*        pRenderTarget,
-        IDWriteFactory*           pDWriteFactory,
+        ID2D1DeviceContext*       d2dDeviceContext,
+        IDWriteFactory*           dwriteFactory,
         std::shared_ptr<Settings> settingsPtr
     ) -> std::unique_ptr<Timer>;
 };
