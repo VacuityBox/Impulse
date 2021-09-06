@@ -7,7 +7,7 @@
 #include <spdlog/spdlog.h>
 #include <d2d1effects.h>
 
-namespace Impulse {
+namespace Impulse::Widgets {
 
 auto Button::FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool
 {   
@@ -191,4 +191,4 @@ auto Button::Create (
     return std::make_unique<Button>(std::move(button));
 }
 
-} // namespace Impulse
+} // namespace Impulse::Widgets

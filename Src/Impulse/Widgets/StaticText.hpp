@@ -15,7 +15,7 @@ namespace {
     using namespace Microsoft::WRL;
 }
 
-namespace Impulse {
+namespace Impulse::Widgets {
 
 class StaticText : public Widget
 {
@@ -86,4 +86,4 @@ public:
     ) -> std::unique_ptr<StaticText>;
 };
 
-} // namespace Impulse
+} // namespace Impulse::Widgets

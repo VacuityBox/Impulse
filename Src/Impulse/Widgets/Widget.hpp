@@ -8,7 +8,7 @@ namespace {
     using namespace D2D1;
 }
 
-namespace Impulse {
+namespace Impulse::Widgets {
 
 class Widget
 {
@@ -48,4 +48,4 @@ public:
     virtual auto Draw    (ID2D1DeviceContext* d2dDeviceContext) -> void = 0;
 };
 
-} // namespace Impulse
+} // namespace Impulse::Widgets

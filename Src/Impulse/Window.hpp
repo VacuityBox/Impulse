@@ -65,7 +65,7 @@ protected:
 
     virtual auto OnResize     (UINT32 width, UINT32 height) -> void {}
     virtual auto OnMove       (int x, int y)                -> void {}
-    virtual auto OnDpiChange  (float dpi)                   -> void {}
+    virtual auto OnDpiChanged (float dpi)                   -> void {}
 
     virtual auto OnKeyDown    (UINT key) -> void {}
     virtual auto OnKeyUp      (UINT key) -> void {}
@@ -85,15 +85,15 @@ private:
     auto Dispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT;
 
     // Message handlers.
-    auto Close     ()                                 -> void;
-    auto Resize    (UINT32 width, UINT32 height)      -> void;
-    auto Move      (int x, int y)                     -> void;
-    auto DpiChange ()                                 -> void;
-    auto KeyDown   (UINT key)                         -> void;
-    auto KeyUp     (UINT key)                         -> void;
-    auto MouseDown (MouseButton button, int x, int y) -> void;
-    auto MouseUp   (MouseButton button, int x, int y) -> void;
-    auto MouseMove (int x, int y)                     -> void;
+    auto Close      ()                                 -> void;
+    auto Resize     (UINT32 width, UINT32 height)      -> void;
+    auto Move       (int x, int y)                     -> void;
+    auto DpiChanged ()                                 -> void;
+    auto KeyDown    (UINT key)                         -> void;
+    auto KeyUp      (UINT key)                         -> void;
+    auto MouseDown  (MouseButton button, int x, int y) -> void;
+    auto MouseUp    (MouseButton button, int x, int y) -> void;
+    auto MouseMove  (int x, int y)                     -> void;
 
     // WndProc callback.
     static auto CALLBACK WindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT;

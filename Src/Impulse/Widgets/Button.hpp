@@ -15,7 +15,7 @@ namespace {
     using namespace Microsoft::WRL;
 }
 
-namespace Impulse {
+namespace Impulse::Widgets {
 
 class Button : public Widget
 {
@@ -135,4 +135,4 @@ public:
     ) -> std::unique_ptr<Button>;
 };
 
-} // namespace Impulse
+} // namespace Impulse::Widgets

@@ -3,18 +3,18 @@
 
 #include "Utility.hpp"
 
-#include <cmath>
 #include <spdlog/spdlog.h>
 
-namespace Impulse {
+namespace Impulse::Widgets {
 
 auto Timer::DurationToString() -> std::wstring
 {
-    const auto negative = mDuration < 0;
-    const auto duration = negative ? std::abs(mDuration) : mDuration;
+    const auto original = std::chrono::duration_cast<std::chrono::seconds>(mTimer->Duration());
+    const auto negative = original < std::chrono::seconds(0);
+    const auto duration = negative ? std::chrono::abs(original) : original;
 
-    const auto minutes = duration / 60;
-    const auto seconds = duration % 60;
+    const auto minutes = std::chrono::duration_cast<std::chrono::minutes>(original).count();
+    const auto seconds = original % 60;
     auto str = std::wstring();
 
     if (negative)
@@ -30,12 +30,12 @@ auto Timer::DurationToString() -> std::wstring
     
     str += L":";
 
-    if (seconds < 10)
+    if (seconds < std::chrono::seconds(10))
     {
         str += L"0";
     }
-    str += std::to_wstring(seconds);
-
+    str += std::to_wstring(seconds.count());
+    
     return std::move(str);
 }
 
@@ -76,7 +76,7 @@ auto Timer::Draw (ID2D1DeviceContext* d2dDeviceContext) -> void
     );
 
     // Draw Texts.
-    if (mPaused)
+    if (mTimer->IsPaused())
     {
         mStaticTop->Draw(d2dDeviceContext);
     }
@@ -95,10 +95,11 @@ auto Timer::Draw (ID2D1DeviceContext* d2dDeviceContext) -> void
 }
 
 auto Timer::Create (
-    const Timer::Desc&        desc,
-    ID2D1DeviceContext*       d2dDeviceContext,
-    IDWriteFactory*           dwriteFactory,
-    std::shared_ptr<Settings> settingsPtr
+    const Timer::Desc&                 desc,
+    ID2D1DeviceContext*                d2dDeviceContext,
+    IDWriteFactory*                    dwriteFactory,
+    std::shared_ptr<Impulse::Settings> settingsPtr,
+    std::shared_ptr<Impulse::Timer>    timerPtr
 ) -> std::unique_ptr<Timer>
 {
     spdlog::debug("Creating Timer");
@@ -119,6 +120,7 @@ auto Timer::Create (
     auto timer = std::make_unique<Timer>();
 
     timer->mSettings = settingsPtr;
+    timer->mTimer    = timerPtr;
 
     timer->mCenter      = desc.center;
     timer->mOuterRadius = desc.outerRadius;
@@ -192,4 +194,4 @@ auto Timer::Create (
     return timer;
 }
 
-} // namespace Impulse
+} // namespace Impulse::Widgets

@@ -99,7 +99,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.hpp</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Src\Impulse;$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
@@ -122,7 +122,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.hpp</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Src\Impulse;$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
@@ -145,7 +145,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.hpp</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Src\Impulse;$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
@@ -168,7 +168,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.hpp</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Src\Impulse;$(SolutionDir)Deps\spdlog\include;$(SolutionDir)Deps\json\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
@@ -183,7 +183,6 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Button.cpp" />
     <ClCompile Include="D2DApp.cpp" />
     <ClCompile Include="Impulse.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -193,23 +192,25 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="StaticText.cpp" />
-    <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Utility.cpp" />
+    <ClCompile Include="Widgets\Button.cpp" />
+    <ClCompile Include="Widgets\StaticText.cpp" />
+    <ClCompile Include="Widgets\Timer.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Button.hpp" />
     <ClInclude Include="D2DApp.hpp" />
     <ClInclude Include="DX.hpp" />
     <ClInclude Include="Impulse.hpp" />
     <ClInclude Include="ImpulseState.hpp" />
     <ClInclude Include="PCH.hpp" />
     <ClInclude Include="Settings.hpp" />
-    <ClInclude Include="StaticText.hpp" />
     <ClInclude Include="Timer.hpp" />
     <ClInclude Include="Utility.hpp" />
-    <ClInclude Include="Widget.hpp" />
+    <ClInclude Include="Widgets\Button.hpp" />
+    <ClInclude Include="Widgets\StaticText.hpp" />
+    <ClInclude Include="Widgets\Timer.hpp" />
+    <ClInclude Include="Widgets\Widget.hpp" />
     <ClInclude Include="Window.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

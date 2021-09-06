@@ -4,7 +4,7 @@
 #include "Utility.hpp"
 #include <spdlog/spdlog.h>
 
-namespace Impulse {
+namespace Impulse::Widgets {
 
 auto StaticText::FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool
 {
@@ -132,4 +132,4 @@ auto StaticText::Create (
     return std::make_unique<StaticText>(std::move(staticText));
 }
 
-} // namespace Impulse
+} // namespace Impulse::Widgets

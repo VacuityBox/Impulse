@@ -57,7 +57,7 @@ public:
     uint32_t       ShortBreakDuration  = 4;//MINUTES(5);
     uint32_t       LongBreakDuration   = 8;//MINUTES(15);
     uint32_t       LongBreakAfter      = 4;
-    bool           AutoStartTimer      = false;
+    bool           AutoStartTimer      = true;
     std::wstring   TaskName            = L"";
     WindowPosition WindowPosition      = WindowPosition::Auto;
 

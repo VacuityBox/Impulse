@@ -193,7 +193,7 @@ auto ImpulseApp::CreateGraphicsResources () -> bool
         r = CreateButtons();
         r = CreateTimer();
         r = CreateStaticText();
-        if (r)
+        if (!r)
         {
             return false;
         }
@@ -413,7 +413,7 @@ auto ImpulseApp::CreateTimer () -> bool
     const auto padding = 45.0f;
     const auto radius  = (std::min(rt.width, rt.height) / 2) - padding;
 
-    auto desc = Timer::Desc();
+    auto desc = Widgets::Timer::Desc();
 
     desc.center      = D2D1::Point2F(rt.width/2, rt.height/2);
     desc.outerRadius = radius;
@@ -430,20 +430,25 @@ auto ImpulseApp::CreateTimer () -> bool
     desc.topTextDesc.fontSize    = 16.0f;
     desc.bottomTextDesc.fontSize = 16.0f;
 
-    mTimerWidget = Timer::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get(), mSettings);
+    mTimerWidget = Widgets::Timer::Create(
+        desc, mD2DDeviceContext.Get(), mDWriteFactory.Get(), mSettings, mTimerClock
+    );
 
-    mTimerWidget->OnTimeout = [&]{ Timer_Timeout(); };
-    mTimerWidget->Duration(mSettings->WorkDuration);
+    mTimerClock->OnTick    = [&]{ Timer_Tick(); };
+    mTimerClock->OnTimeout = [&]{ Timer_Timeout(); };
+
+    mTimerClock->Interval(std::chrono::milliseconds(1000));
+    mTimerClock->Duration(std::chrono::milliseconds(mSettings->WorkDuration * 1000));
     
     if (mSettings->AutoStartTimer)
     {
-        mTimerWidget->Start();
+        mTimerClock->Start(false);
         mSettings->CurrentState = ImpulseState::WorkShift;
     }
     else
     {
-        mTimerWidget->Pause();
-        mSettings->CurrentState = ImpulseState::Inactive; // on start timer is inactive
+        mTimerClock->Start(true);
+        mSettings->CurrentState = ImpulseState::Inactive; // on start clock is inactive
     }
 
     return true;
@@ -553,8 +558,17 @@ auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
 
 ////////////////////////////////////////////////////////////////////////////////
 
+auto ImpulseApp::Timer_Tick () -> void
+{
+    // !!! This method is called from other thread !!!
+
+    SendMessage(Handle(), WM_IMPULSE_REDRAW, 0, 0);
+}
+
 auto ImpulseApp::Timer_Timeout () -> void
 {
+    // !!! This method is called from other thread !!!
+    
     // This function gets executed when timer hit 0.
     switch (mSettings->CurrentState)
     {
@@ -563,18 +577,18 @@ auto ImpulseApp::Timer_Timeout () -> void
         // Check if we need to start long break.
         if (mSettings->WorkShiftCount == mSettings->LongBreakAfter)
         {
-            ImpulseLongBreak();
+            SendMessage(Handle(), WM_IMPULSE_START_LONG_BREAK, 0, 0);
         }
         else
         {
-            ImpulseShortBreak();
+            SendMessage(Handle(), WM_IMPULSE_START_SHORT_BREAK, 0, 0);
         }
         break;
 
     // Time for work.
     case ImpulseState::ShortBreak:
     case ImpulseState::LongBreak:
-        ImpulseWork();
+        SendMessage(Handle(), WM_IMPULSE_START_WORK_SHIFT, 0, 0);
 
         if (mSettings->WorkShiftCount < mSettings->LongBreakAfter)
         {
@@ -602,42 +616,42 @@ auto ImpulseApp::ButtonSettings_Click () -> void
 
 auto ImpulseApp::ButtonPause_Click () -> void
 {
-    ImpulsePause();
+    ImpulsePauseClock();
 }
 
 auto ImpulseApp::ButtonInfo_Click () -> void
 {
 }
 
-auto ImpulseApp::ImpulseWork () -> void
+auto ImpulseApp::ImpulseStartWork () -> void
 {
-    mTimerWidget->Duration(mSettings->WorkDuration);
+    mTimerClock->Duration(std::chrono::milliseconds(mSettings->WorkDuration * 1000));
     mSettings->CurrentState = ImpulseState::WorkShift;
     UpdateStateStatic();
 }
 
-auto ImpulseApp::ImpulseShortBreak () -> void
+auto ImpulseApp::ImpulseStartShortBreak () -> void
 {
-    mTimerWidget->Duration(mSettings->ShortBreakDuration);
+    mTimerClock->Duration(std::chrono::milliseconds(mSettings->ShortBreakDuration * 1000));
     mSettings->CurrentState = ImpulseState::ShortBreak;
     UpdateStateStatic();
 }
 
-auto ImpulseApp::ImpulseLongBreak () -> void
+auto ImpulseApp::ImpulseStartLongBreak () -> void
 {
-    mTimerWidget->Duration(mSettings->LongBreakDuration);
+    mTimerClock->Duration(std::chrono::milliseconds(mSettings->LongBreakDuration * 1000));
     mSettings->CurrentState = ImpulseState::LongBreak;
     UpdateStateStatic();
 }
 
-auto ImpulseApp::ImpulsePause () -> void
+auto ImpulseApp::ImpulsePauseClock () -> void
 {
     switch (mSettings->CurrentState)
     {
     case ImpulseState::WorkShift:
     case ImpulseState::LongBreak:
     case ImpulseState::ShortBreak:
-        mTimerWidget->Pause();
+        mTimerClock->Pause();
         mButtonPause->Text(L"▶️", mDWriteFactory.Get());
         mSettings->PreviousState = mSettings->CurrentState;
         mSettings->CurrentState = ImpulseState::Paused;
@@ -645,7 +659,7 @@ auto ImpulseApp::ImpulsePause () -> void
 
     case ImpulseState::Inactive:
     case ImpulseState::Paused:
-        mTimerWidget->Start();
+        mTimerClock->Start();
         mButtonPause->Text(L"⏸", mDWriteFactory.Get());
         mSettings->PreviousState = mSettings->CurrentState;
         mSettings->CurrentState = ImpulseState::WorkShift;
@@ -792,7 +806,7 @@ auto ImpulseApp::OnClose () -> void
     Quit();
 }
 
-auto ImpulseApp::OnDpiChange (float dpi) -> void
+auto ImpulseApp::OnDpiChanged (float dpi) -> void
 {
     auto [position, size] = CalculateWindowPositionAndSize(
             mSettings->WindowPosition, 450.f, 330.f, 20.f, dpi
@@ -894,7 +908,41 @@ auto ImpulseApp::OnDraw () -> void
     DrawStaticTexts();
 
     SetWindowTextW(Handle(), std::to_wstring(frames).c_str());
-    frames++;    
+    frames++;
+}
+
+auto ImpulseApp::OnResize (UINT32 width, UINT32 height) -> void
+{
+    D2DApp::OnResize(width, height);
+
+    CalculateLayout();
+    Redraw();
+
+    Draw();
+}
+
+auto ImpulseApp::CustomMessageHandler (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
+{
+    switch (message)
+    {
+    case WM_IMPULSE_REDRAW:
+        Redraw();
+        return 0;
+
+    case WM_IMPULSE_START_WORK_SHIFT:
+        ImpulseStartWork();
+        return 0;
+
+    case WM_IMPULSE_START_LONG_BREAK:
+        ImpulseStartLongBreak();
+        return 0;
+
+    case WM_IMPULSE_START_SHORT_BREAK:
+        ImpulseStartShortBreak();
+        return 0;
+    }
+
+    return D2DApp::CustomMessageHandler(message, wParam, lParam);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

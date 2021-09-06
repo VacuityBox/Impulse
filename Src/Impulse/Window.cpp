@@ -31,7 +31,7 @@ auto Window::Dispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
         return 0;
 
     case WM_DPICHANGED:
-        DpiChange();
+        DpiChanged();
         return 0;
 
     case WM_KEYUP:
@@ -83,7 +83,7 @@ auto Window::Move (int x, int y) -> void
     OnMove(x, y);
 }
 
-auto Window::DpiChange () -> void
+auto Window::DpiChanged () -> void
 {
     auto dpi = GetDpiForWindow(mWindowHandle);
     if (dpi == 0)
@@ -93,7 +93,7 @@ auto Window::DpiChange () -> void
     }
 
     mDpi = dpi;
-    OnDpiChange(dpi);
+    OnDpiChanged(dpi);
 }
 
 auto Window::KeyDown (UINT key) -> void
