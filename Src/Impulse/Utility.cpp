@@ -1,7 +1,7 @@
 #include "PCH.hpp"
 #include "Utility.hpp"
+#include "Resource.h"
 
-#include <comdef.h>
 #include <ShlObj.h>
 
 namespace Impulse {
@@ -108,18 +108,6 @@ auto GetLastErrorMessage () -> std::string
     return std::string();
 }
 
-auto HResultToString (HRESULT hr) -> std::string
-{
-    auto err  = _com_error(hr);
-    auto utf8 = UTF16ToUTF8(err.ErrorMessage());
-    if (utf8)
-    {
-        return utf8.value();
-    }
-
-    return std::string();
-}
-
 auto GetAppDataPath () -> std::filesystem::path
 {
     auto appDataPath = std::array<wchar_t, MAX_PATH>();
@@ -130,6 +118,36 @@ auto GetAppDataPath () -> std::filesystem::path
     }
 
     return std::filesystem::path();
+}
+
+auto LoadSvgFromResource (int id) -> std::string
+{
+    const auto hInstance = GetModuleHandleW(nullptr);
+    if (!hInstance)
+    {
+        return std::string();
+    }
+    
+    auto resource = FindResourceW(hInstance, MAKEINTRESOURCEW(id), RT_SVG);
+    if (!resource)
+    {
+        return std::string();
+    }
+
+    auto handle = LoadResource(hInstance, resource);
+    if (!handle)
+    {
+        return std::string();
+    }
+
+    const auto size = SizeofResource(hInstance, resource);
+    const auto data = static_cast<const char *>(LockResource(handle));
+    
+    auto output = std::string(data, size);
+
+    FreeResource(handle);
+
+    return output;
 }
 
 } // namespace Impulse

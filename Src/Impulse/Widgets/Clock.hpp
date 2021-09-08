@@ -1,6 +1,6 @@
 #pragma once
 
-#include "..\Timer.hpp"
+#include "Timer.hpp"
 #include "Settings.hpp"
 #include "StaticText.hpp"
 #include "Widget.hpp"
@@ -19,7 +19,7 @@ namespace {
 
 namespace Impulse::Widgets {
 
-class Timer : public Widget
+class Clock : public Widget
 {
 public:
     struct Desc
@@ -27,7 +27,6 @@ public:
         D2D1_POINT_2F    center             = D2D1::Point2F();
         float            outerRadius        = 0.0f;
         float            innerRadius        = 0.0f;
-        int64_t          duration           = 0;                // in seconds
         float            outerStroke        = 1.0f;
         float            innerStroke        = 1.0f;
         
@@ -42,31 +41,41 @@ public:
     };
 
 private:
-    D2D1_POINT_2F mCenter      = D2D1::Point2F();
-    float         mOuterRadius = 0.0f;
-    float         mInnerRadius = 0.0f;
-    float         mOuterStroke = 1.0f;
-    float         mInnerStroke = 1.0f;
+    D2D1_POINT_2F                mCenter             = D2D1::Point2F();
+    float                        mOuterRadius        = 0.0f;
+    float                        mInnerRadius        = 0.0f;
+    float                        mOuterStroke        = 1.0f;
+    float                        mInnerStroke        = 1.0f;
+
+    D2D1_COLOR_F                 mOuterCircleColor   = {0};
+    D2D1_COLOR_F                 mOuterOutlineColor  = {0};
+    D2D1_COLOR_F                 mInnerCircleColor   = {0};
+    D2D1_COLOR_F                 mInnerOutlineColor  = {0};
 
     ComPtr<ID2D1SolidColorBrush> mOuterCircleBrush;
     ComPtr<ID2D1SolidColorBrush> mOuterOutlineBrush;
     ComPtr<ID2D1SolidColorBrush> mInnerCircleBrush;
     ComPtr<ID2D1SolidColorBrush> mInnerOutlineBrush;
 
+    ID2D1DeviceContext*          mD2DDeviceContext   = nullptr;
+    IDWriteFactory*              mDWriteFactory      = nullptr;
+
     std::unique_ptr<StaticText>  mStaticTimer;
     std::unique_ptr<StaticText>  mStaticTop;
     std::unique_ptr<StaticText>  mStaticBottom;
 
-    std::shared_ptr<Impulse::Settings> mSettings;
-    std::shared_ptr<Impulse::Timer>    mTimer;
-
+    std::shared_ptr<Settings>    mSettings;
+    std::shared_ptr<Timer>       mTimer;
 
 private:
     auto DurationToString() -> std::wstring;
 
+    auto CreateBrushes () -> bool;
+    auto CreateBrush   (D2D_COLOR_F color) -> ComPtr<ID2D1SolidColorBrush>;
+
 public:
-    Timer  () = default;
-    ~Timer () = default;
+    Clock  () = default;
+    ~Clock () = default;
 
     auto Position    (float x, float y)  { mCenter.x = x; mCenter.y = y; }
     auto OuterRadius (float r)           { mOuterRadius = r; }
@@ -95,12 +104,12 @@ public:
     virtual auto Draw    (ID2D1DeviceContext* d2dDeviceContext) -> void override;
 
     static auto Create (
-        const Timer::Desc&                 desc,
-        ID2D1DeviceContext*                d2dDeviceContext,
-        IDWriteFactory*                    dwriteFactory,
-        std::shared_ptr<Impulse::Settings> settingsPtr,
-        std::shared_ptr<Impulse::Timer>    timerPtr
-    ) -> std::unique_ptr<Timer>;
+        const Clock::Desc&        desc,
+        ID2D1DeviceContext*       d2dDeviceContext,
+        IDWriteFactory*           dwriteFactory,
+        std::shared_ptr<Settings> settingsPtr,
+        std::shared_ptr<Timer>    timerPtr
+    ) -> std::unique_ptr<Clock>;
 };
 
 } // namespace Impulse::Widgets

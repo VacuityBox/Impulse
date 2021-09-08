@@ -1,6 +1,6 @@
 ﻿#include "PCH.hpp"
 #include "Impulse.hpp"
-
+#include "Resource.h"
 #include "Utility.hpp"
 
 #include <chrono>
@@ -187,23 +187,22 @@ auto ImpulseApp::CreateGraphicsResources () -> bool
 {
     spdlog::debug("Creating Graphics Resources");
 
-    if (!mInitialzied)
+
+    auto r = false;
+    r = CreateButtons();
+    r = CreateTimer();
+    r = CreateStaticText();
+    if (!r)
     {
-        auto r = false;
-        r = CreateButtons();
-        r = CreateTimer();
-        r = CreateStaticText();
-        if (!r)
-        {
-            return false;
-        }
-
-        CalculateLayout();
-
-        UpdatePauseButton();
-        UpdateStateStatic();
-        UpdateTaskStatic();
+        return false;
     }
+
+    CalculateLayout();
+
+    UpdatePauseButton();
+    UpdateStateStatic();
+    UpdateTaskStatic();
+    
 
     spdlog::debug("Successfully created Graphics Resources");
 
@@ -217,7 +216,7 @@ auto ImpulseApp::DiscardGraphicsResources () -> void
     mStaticImpulseState.reset();
     mStaticCurrentTask.reset();
 
-    mTimerWidget.reset();
+    mClockWidget.reset();
 
     mButtonClose.reset();
     mButtonSettings.reset();
@@ -235,18 +234,12 @@ auto ImpulseApp::CalculateLayout () -> void
         return;
     }
 
-    auto dpi = GetDpiForWindow(Handle());
-    if (dpi == 0)
-    {
-        spdlog::warn("GetDpiForWindow() failed, using default value (96)");
-        dpi = 96;
-    }
-
-    const auto scale = dpi / 96.f;
-
     const auto originalWidth  = 450.f;
     const auto originalHeight = 330.f;
     const auto windowPadding  = 20.f;
+
+    const auto dpi   = GetDpi();
+    const auto scale = dpi / 96.f;
 
     auto [position, size] = CalculateWindowPositionAndSize(
         mSettings->WindowPosition, originalWidth, originalHeight, windowPadding, dpi
@@ -273,14 +266,14 @@ auto ImpulseApp::CalculateLayout () -> void
 
     const auto timerPadding          = ceil(55.f * scale);
     const auto timerOuterRadius      = (std::min(rt.width, rt.height) / 2.f) - timerPadding;
-    const auto timerInnerRadius      = timerOuterRadius - ceil(25.f * scale); // TODO use some ratio mby
+    const auto timerInnerRadius      = timerOuterRadius - ceil(25.f * scale);
     const auto timerStroke           = ceil(2.f * scale);
     const auto timerFontSize         = ceil(40.f * scale);
     const auto timerTopFontSize      = ceil(16.f * scale);
     const auto timerBottomFontSize   = ceil(16.f * scale);
     const auto timerTopTextHeight    = ceil(32.f * scale);
     const auto timerBottomTextHeight = ceil(32.f * scale);
-
+    
     // Calculate button position/size.
     {
         const auto brx = rt.width - buttonWidth - buttonPaddingX;
@@ -288,46 +281,50 @@ auto ImpulseApp::CalculateLayout () -> void
 
         mButtonSettings->Position(buttonPaddingX, buttonPaddingY);
         mButtonSettings->Size(buttonWidth, buttonHeight);
-        mButtonSettings->FontSize(buttonFontSize, mDWriteFactory.Get());
+        mButtonSettings->FontSize(buttonFontSize);
 
         mButtonClose->Position(brx, buttonPaddingY);
         mButtonClose->Size(buttonWidth, buttonHeight);
-        mButtonClose->FontSize(buttonFontSize, mDWriteFactory.Get());
+        mButtonClose->FontSize(buttonFontSize);
 
         mButtonPause->Position(buttonPaddingX, bry);
         mButtonPause->Size(buttonWidth, buttonHeight);
-        mButtonPause->FontSize(buttonFontSize, mDWriteFactory.Get());
+        mButtonPause->FontSize(buttonFontSize);
 
         mButtonInfo->Position(brx, bry);
         mButtonInfo->Size(buttonWidth, buttonHeight);
-        mButtonInfo->FontSize(buttonFontSize, mDWriteFactory.Get());
+        mButtonInfo->FontSize(buttonFontSize);
     }
 
     // Calculate timer position/size.
     {
-        const auto cx = rt.width/2;
-        const auto cy = rt.height/2;
-        mTimerWidget->Position(cx, cy);
-        mTimerWidget->OuterRadius(timerOuterRadius);
-        mTimerWidget->InnerRadius(timerInnerRadius);
-        mTimerWidget->OuterStroke(timerStroke);
-        mTimerWidget->InnerStroke(timerStroke);
+        const auto cx = rt.width / 2;
+        const auto cy = rt.height / 2;
+        mClockWidget->Position(cx, cy);
+        mClockWidget->OuterRadius(timerOuterRadius);
+        mClockWidget->InnerRadius(timerInnerRadius);
+        mClockWidget->OuterStroke(timerStroke);
+        mClockWidget->InnerStroke(timerStroke);
 
-        const auto timerRect = mTimerWidget->Rect();
-        const auto timerText = mTimerWidget->GetTimerStatic();
+        const auto timerRect = mClockWidget->Rect();
+        const auto timerText = mClockWidget->GetTimerStatic();
         timerText->Position(timerRect.left, timerRect.top);
         timerText->Size(2.f * timerOuterRadius, 2.f * timerOuterRadius);
-        timerText->FontSize(timerFontSize, mDWriteFactory.Get());
+        timerText->FontSize(timerFontSize);
 
-        const auto timerTop = mTimerWidget->GetTopStatic();
-        timerTop->Position(timerRect.left, cy - ceil(64.f * scale)); // TODO use ratio
+        const auto timerTop = mClockWidget->GetTopStatic();
+        const auto tar2 = cy - ceil(64.f * scale);
+        const auto tar = cy - (timerInnerRadius / 2) - (timerTopTextHeight / 2);
+        timerTop->Position(timerRect.left, tar);
         timerTop->Size(timerRect.right - timerRect.left, timerTopTextHeight);
-        timerTop->FontSize(timerTopFontSize, mDWriteFactory.Get());
+        timerTop->FontSize(timerTopFontSize);
 
-        const auto timerBottom = mTimerWidget->GetBottomStatic();
-        timerBottom->Position(timerRect.left, cy + ceil(32.f * scale)); // TODO use ratio
+        const auto timerBottom = mClockWidget->GetBottomStatic();
+        const auto bar2 = cy + ceil(32.f * scale);
+        const auto bar = cy + (timerInnerRadius / 2) - (timerBottomTextHeight / 2);
+        timerBottom->Position(timerRect.left, bar);
         timerBottom->Size(timerRect.right - timerRect.left, timerBottomTextHeight);
-        timerBottom->FontSize(timerBottomFontSize, mDWriteFactory.Get());
+        timerBottom->FontSize(timerBottomFontSize);
     }
 
     // Calculate static texts.
@@ -337,11 +334,11 @@ auto ImpulseApp::CalculateLayout () -> void
 
         mStaticImpulseState->Position(slx, staticTopPadding);
         mStaticImpulseState->Size(slw, buttonHeight);
-        mStaticImpulseState->FontSize(staticStateFontSize, mDWriteFactory.Get());
+        mStaticImpulseState->FontSize(staticStateFontSize);
 
         mStaticCurrentTask->Position(slx, rt.height - staticBottomPadding - buttonHeight);
         mStaticCurrentTask->Size(slw, buttonHeight);
-        mStaticCurrentTask->FontSize(staticTaskFontSize, mDWriteFactory.Get());
+        mStaticCurrentTask->FontSize(staticTaskFontSize);
     }
 }
 
@@ -353,14 +350,7 @@ auto ImpulseApp::CalculateLayout () -> void
 
 auto ImpulseApp::CreateButtons () -> bool
 {
-    const auto rt           = mD2DDeviceContext->GetSize();
-    const auto buttonWidth  = 32.0f;
-    const auto buttonHeight = buttonWidth;
-    const auto padding      = 5.0f;
-
-    auto desc     = Button::Desc();
-    desc.size     = D2D1::SizeF(buttonWidth, buttonHeight);
-    desc.fontSize = 22.0f;
+    auto desc = Button::Desc();
 
     desc.defaultTextColor     = D2D1::ColorF(D2D1::ColorF::Black);
     desc.defaultOutlineColor  = D2D1::ColorF(D2D1::ColorF::Black);
@@ -372,30 +362,27 @@ auto ImpulseApp::CreateButtons () -> bool
     desc.disabledOutlineColor = D2D1::ColorF(D2D1::ColorF::Gray);
     
     {
-        desc.text     = L"⚙️";
-        desc.position = D2D1::Point2F(padding, padding);
-
+        desc.text = L"⚙️";
+        desc.svg0  = IDR_SVG_SETTINGS;
         mButtonSettings = Button::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get());
     }
 
     {
-        desc.text     = L"❌";
-        desc.position = D2D1::Point2F(rt.width - buttonWidth - padding, padding);
-
+        desc.text = L"❌";
+        desc.svg0  = IDR_SVG_CLOSE;
         mButtonClose = Button::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get());
     }
 
     {
-        desc.text       = L"▶️";
-        desc.position   = D2D1::Point2F(padding, rt.height - buttonHeight - padding);
-
+        desc.text = L"▶️";
+        desc.svg0  = IDR_SVG_PLAY;
+        desc.svg1  = IDR_SVG_PAUSE;
         mButtonPause = Button::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get());
     }
 
     {
-        desc.text       = L"🛈";
-        desc.position   = D2D1::Point2F(rt.width - buttonWidth - padding, rt.height - buttonHeight - padding);
-
+        desc.text = L"🛈";
+        desc.svg0  = IDR_SVG_INFO;
         mButtonInfo = Button::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get());
     }
 
@@ -409,45 +396,33 @@ auto ImpulseApp::CreateButtons () -> bool
 
 auto ImpulseApp::CreateTimer () -> bool
 {
-    const auto rt      = mD2DDeviceContext->GetSize();
-    const auto padding = 45.0f;
-    const auto radius  = (std::min(rt.width, rt.height) / 2) - padding;
+    auto desc = Widgets::Clock::Desc();
 
-    auto desc = Widgets::Timer::Desc();
-
-    desc.center      = D2D1::Point2F(rt.width/2, rt.height/2);
-    desc.outerRadius = radius;
-    desc.innerRadius = radius - 25.0f;
-    desc.outerStroke = 2.5f;
-    desc.innerStroke = 2.5f;
-    
     desc.outerCircleColor  = D2D1::ColorF(0.40f, 0.63f, 1.0f);
     desc.outerOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
     desc.innerCircleColor  = D2D1::ColorF(0.68f, 0.81f, 1.0f);
     desc.innerOutlineColor = D2D1::ColorF(D2D1::ColorF::Black);
 
-    desc.timerTextDesc.fontSize  = 40.0f;
-    desc.topTextDesc.fontSize    = 16.0f;
-    desc.bottomTextDesc.fontSize = 16.0f;
+    desc.topTextDesc.text = L"(paused)";
 
-    mTimerWidget = Widgets::Timer::Create(
-        desc, mD2DDeviceContext.Get(), mDWriteFactory.Get(), mSettings, mTimerClock
+    mClockWidget = Widgets::Clock::Create(
+        desc, mD2DDeviceContext.Get(), mDWriteFactory.Get(), mSettings, mTimer
     );
 
-    mTimerClock->OnTick    = [&]{ Timer_Tick(); };
-    mTimerClock->OnTimeout = [&]{ Timer_Timeout(); };
+    mTimer->OnTick    = [&]{ Timer_Tick(); };
+    mTimer->OnTimeout = [&]{ Timer_Timeout(); };
 
-    mTimerClock->Interval(std::chrono::milliseconds(1000));
-    mTimerClock->Duration(std::chrono::milliseconds(mSettings->WorkDuration * 1000));
+    mTimer->Interval(std::chrono::milliseconds(1000));
+    mTimer->Duration(std::chrono::milliseconds(mSettings->WorkDuration * 1000));
     
     if (mSettings->AutoStartTimer)
     {
-        mTimerClock->Start(false);
+        mTimer->Start(false);
         mSettings->CurrentState = ImpulseState::WorkShift;
     }
     else
     {
-        mTimerClock->Start(true);
+        mTimer->Start(true);
         mSettings->CurrentState = ImpulseState::Inactive; // on start clock is inactive
     }
 
@@ -456,27 +431,17 @@ auto ImpulseApp::CreateTimer () -> bool
 
 auto ImpulseApp::CreateStaticText () -> bool
 {
-    const auto rt = mD2DDeviceContext->GetSize();
-    
-    auto desc = StaticText::Desc();
-
-    desc.fontWeight = DWRITE_FONT_WEIGHT_BOLD;
+    auto desc           = StaticText::Desc();
+    desc.fontWeight     = DWRITE_FONT_WEIGHT_BOLD;
+    desc.hoverTextColor = D2D1::ColorF(D2D1::ColorF::DarkGray);
 
     {
-        desc.text     = L"<Impulse State>";
-        desc.position = D2D1::Point2F(42.0f, 5.0f);
-        desc.size     = D2D1::SizeF((rt.width - 42.0f) - desc.position.x, 32.0f - desc.position.y);
-        desc.fontSize = 24.0f;
-
+        desc.text = L"<Impulse State>";
         mStaticImpulseState = StaticText::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get());
     }
 
     {
-        desc.text     = L"<Current Task>";
-        desc.position = D2D1::Point2F(42.0f, rt.height - 32.0f);
-        desc.size     = D2D1::SizeF((rt.width - 42.0f) - desc.position.x, rt.height - 5.0f - desc.position.y);
-        desc.fontSize = 20.0f;
-        
+        desc.text = L"<Current Task>";
         mStaticCurrentTask = StaticText::Create(desc, mD2DDeviceContext.Get(), mDWriteFactory.Get());
     }
 
@@ -501,9 +466,9 @@ auto ImpulseApp::DrawButtons () -> void
 
 auto ImpulseApp::DrawTimer () -> void
 {
-    if (mTimerWidget)
+    if (mClockWidget)
     {
-        mTimerWidget->Draw(mD2DDeviceContext.Get());
+        mClockWidget->Draw(mD2DDeviceContext.Get());
     }
 }
 
@@ -545,6 +510,10 @@ auto ImpulseApp::HitTest (D2D_POINT_2F point) -> Widget*
     if (mButtonInfo->HitTest(point))
     {
         return mButtonInfo.get();
+    }
+    if (mStaticCurrentTask->HitTest(point))
+    {
+        return mStaticCurrentTask.get();
     }
     
     return nullptr;
@@ -611,7 +580,6 @@ auto ImpulseApp::ButtonClose_Click () -> void
 
 auto ImpulseApp::ButtonSettings_Click () -> void
 {
-
 }
 
 auto ImpulseApp::ButtonPause_Click () -> void
@@ -625,21 +593,21 @@ auto ImpulseApp::ButtonInfo_Click () -> void
 
 auto ImpulseApp::ImpulseStartWork () -> void
 {
-    mTimerClock->Duration(std::chrono::milliseconds(mSettings->WorkDuration * 1000));
+    mTimer->Duration(std::chrono::milliseconds(mSettings->WorkDuration * 1000));
     mSettings->CurrentState = ImpulseState::WorkShift;
     UpdateStateStatic();
 }
 
 auto ImpulseApp::ImpulseStartShortBreak () -> void
 {
-    mTimerClock->Duration(std::chrono::milliseconds(mSettings->ShortBreakDuration * 1000));
+    mTimer->Duration(std::chrono::milliseconds(mSettings->ShortBreakDuration * 1000));
     mSettings->CurrentState = ImpulseState::ShortBreak;
     UpdateStateStatic();
 }
 
 auto ImpulseApp::ImpulseStartLongBreak () -> void
 {
-    mTimerClock->Duration(std::chrono::milliseconds(mSettings->LongBreakDuration * 1000));
+    mTimer->Duration(std::chrono::milliseconds(mSettings->LongBreakDuration * 1000));
     mSettings->CurrentState = ImpulseState::LongBreak;
     UpdateStateStatic();
 }
@@ -651,16 +619,18 @@ auto ImpulseApp::ImpulsePauseClock () -> void
     case ImpulseState::WorkShift:
     case ImpulseState::LongBreak:
     case ImpulseState::ShortBreak:
-        mTimerClock->Pause();
-        mButtonPause->Text(L"▶️", mDWriteFactory.Get());
+        mTimer->Pause();
+        mButtonPause->Text(L"▶️");
+        mButtonPause->SetIcon(0);
         mSettings->PreviousState = mSettings->CurrentState;
         mSettings->CurrentState = ImpulseState::Paused;
         break;
 
     case ImpulseState::Inactive:
     case ImpulseState::Paused:
-        mTimerClock->Start();
-        mButtonPause->Text(L"⏸", mDWriteFactory.Get());
+        mTimer->Start();
+        mButtonPause->Text(L"⏸");
+        mButtonPause->SetIcon(1);
         mSettings->PreviousState = mSettings->CurrentState;
         mSettings->CurrentState = ImpulseState::WorkShift;
         break;
@@ -689,12 +659,14 @@ auto ImpulseApp::UpdatePauseButton () -> void
     case ImpulseState::WorkShift:
     case ImpulseState::LongBreak:
     case ImpulseState::ShortBreak:
-        mButtonPause->Text(L"⏸️", mDWriteFactory.Get());
+        mButtonPause->Text(L"⏸️");
+        mButtonPause->SetIcon(1);
         break;
 
     case ImpulseState::Inactive:
     case ImpulseState::Paused:
-        mButtonPause->Text(L"▶️", mDWriteFactory.Get());
+        mButtonPause->Text(L"▶️");
+        mButtonPause->SetIcon(0);
         break;
     }
 }
@@ -709,7 +681,7 @@ auto ImpulseApp::UpdateStateStatic () -> void
     switch (mSettings->CurrentState)
     {
     case ImpulseState::Inactive:
-        mStaticImpulseState->Text(L"");
+        mStaticImpulseState->Text(L"Inactive");
         break;
 
     case ImpulseState::WorkShift:
@@ -816,7 +788,7 @@ auto ImpulseApp::OnDpiChanged (float dpi) -> void
         Handle(), HWND_TOP, position.x, position.y, size.width, size.height, SWP_NOACTIVATE
     );
 
-    CalculateLayout();
+    //CalculateLayout();
 }
 
 auto ImpulseApp::OnMouseDown (MouseButton button, int x, int y) -> void
@@ -853,10 +825,6 @@ auto ImpulseApp::OnMouseUp (MouseButton button, int x, int y) -> void
             {
                 widget->OnClick();
             }
-        }
-        if (mClickedWidget)
-        {
-
         }
     
         mClickedWidget = nullptr;
@@ -915,10 +883,13 @@ auto ImpulseApp::OnResize (UINT32 width, UINT32 height) -> void
 {
     D2DApp::OnResize(width, height);
 
-    CalculateLayout();
-    Redraw();
+    if (mD2DDeviceContext)
+    {
+        CalculateLayout();
+        Redraw();
 
-    Draw();
+        Draw();
+    }
 }
 
 auto ImpulseApp::CustomMessageHandler (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
@@ -975,8 +946,12 @@ auto ImpulseApp::Init (HINSTANCE hInstance) -> bool
     }
 
     // Create window.
+    const auto originalWidth  = 450.f;
+    const auto originalHeight = 330.f;
+    const auto windowPadding  = 20.f;
+
     auto [position, size] = CalculateWindowPositionAndSize(
-        WindowPosition::Auto, 450.f, 330.f, 20.f
+        mSettings->WindowPosition, originalWidth, originalHeight, windowPadding, GetDpi()
     );
 
     auto wndDesc           = Window::Desc{0};
@@ -1006,8 +981,21 @@ auto ImpulseApp::Init (HINSTANCE hInstance) -> bool
     }
 
     CreateGraphicsResources();
-
+    
     mInitialzied = true;
+
+    {
+        auto [position, size] = CalculateWindowPositionAndSize(
+            mSettings->WindowPosition, originalWidth, originalHeight, windowPadding, GetDpi()
+        );
+    
+        SetWindowPos(
+            Handle(), HWND_TOP, position.x, position.y, size.width, size.height, SWP_NOACTIVATE
+        );
+    }
+
+    CalculateLayout();
+    Redraw();
     
     spdlog::info("Initialization finished");
 

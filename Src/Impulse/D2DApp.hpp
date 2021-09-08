@@ -30,9 +30,9 @@ public:
 
 protected:
     // Direct2D.
-    ComPtr<ID2D1Factory1>       mD2DFactory;
-    ComPtr<ID2D1Device>         mD2DDevice;
-    ComPtr<ID2D1DeviceContext>  mD2DDeviceContext;
+    ComPtr<ID2D1Factory6>       mD2DFactory;
+    ComPtr<ID2D1Device5>        mD2DDevice;
+    ComPtr<ID2D1DeviceContext5> mD2DDeviceContext;
     ComPtr<ID2D1Bitmap1>        mD2DTargetBitmap;
 
     // Direct3D.

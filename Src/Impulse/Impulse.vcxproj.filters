@@ -19,6 +19,9 @@
     <Filter Include="Source Files\Widgets">
       <UniqueIdentifier>{b12a9268-6649-4ae9-b29a-6e093928a57c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Icons">
+      <UniqueIdentifier>{698d5cd2-1dca-4fad-b5bc-1098699936d3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -45,7 +48,7 @@
     <ClCompile Include="Widgets\StaticText.cpp">
       <Filter>Source Files\Widgets</Filter>
     </ClCompile>
-    <ClCompile Include="Widgets\Timer.cpp">
+    <ClCompile Include="Widgets\Clock.cpp">
       <Filter>Source Files\Widgets</Filter>
     </ClCompile>
   </ItemGroup>
@@ -80,7 +83,7 @@
     <ClInclude Include="Widgets\StaticText.hpp">
       <Filter>Header Files\Widgets</Filter>
     </ClInclude>
-    <ClInclude Include="Widgets\Timer.hpp">
+    <ClInclude Include="Widgets\Clock.hpp">
       <Filter>Header Files\Widgets</Filter>
     </ClInclude>
     <ClInclude Include="Widgets\Widget.hpp">
@@ -89,5 +92,30 @@
     <ClInclude Include="Timer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Resources\Icons\cog.svg">
+      <Filter>Resource Files\Icons</Filter>
+    </None>
+    <None Include="..\..\Resources\Icons\cross.svg">
+      <Filter>Resource Files\Icons</Filter>
+    </None>
+    <None Include="..\..\Resources\Icons\info.svg">
+      <Filter>Resource Files\Icons</Filter>
+    </None>
+    <None Include="..\..\Resources\Icons\play.svg">
+      <Filter>Resource Files\Icons</Filter>
+    </None>
+    <None Include="..\..\Resources\Icons\pause.svg">
+      <Filter>Resource Files\Icons</Filter>
+    </None>
   </ItemGroup>
 </Project>

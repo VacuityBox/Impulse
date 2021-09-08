@@ -98,6 +98,8 @@ private:
     // WndProc callback.
     static auto CALLBACK WindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT;
 
+    auto UpdateDpi () -> float;
+
     Window            (const Window&) = delete;
     Window& operator= (const Window&) = delete;
 

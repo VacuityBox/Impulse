@@ -6,7 +6,7 @@
 
 #include "Widgets/Button.hpp"
 #include "Widgets/StaticText.hpp"
-#include "Widgets/Timer.hpp"
+#include "Widgets/Clock.hpp"
 
 #include <filesystem>
 
@@ -25,22 +25,22 @@ class ImpulseApp : public D2DApp
     static constexpr auto WM_IMPULSE_START_LONG_BREAK  = WM_USER + 3;
     static constexpr auto WM_IMPULSE_START_SHORT_BREAK = WM_USER + 4;
 
-    bool                                  mInitialzied = false;
+    bool                         mInitialzied = false;
 
-    std::unique_ptr<Widgets::Button>      mButtonClose;
-    std::unique_ptr<Widgets::Button>      mButtonSettings;
-    std::unique_ptr<Widgets::Button>      mButtonPause;
-    std::unique_ptr<Widgets::Button>      mButtonInfo;
-    std::unique_ptr<Widgets::Timer>       mTimerWidget;
-    std::unique_ptr<Widgets::StaticText>  mStaticImpulseState;
-    std::unique_ptr<Widgets::StaticText>  mStaticCurrentTask;
+    std::unique_ptr<Button>      mButtonClose;
+    std::unique_ptr<Button>      mButtonSettings;
+    std::unique_ptr<Button>      mButtonPause;
+    std::unique_ptr<Button>      mButtonInfo;
+    std::unique_ptr<Clock>       mClockWidget;
+    std::unique_ptr<StaticText>  mStaticImpulseState;
+    std::unique_ptr<StaticText>  mStaticCurrentTask;
 
-    Widget*                               mClickedWidget = nullptr;
-    Widget*                               mHoveredWidget = nullptr;
+    Widget*                      mClickedWidget = nullptr;
+    Widget*                      mHoveredWidget = nullptr;
                                           
-    fs::path                              mSettingsFilePath;
-    std::shared_ptr<Impulse::Settings>    mSettings;      
-    std::shared_ptr<Impulse::Timer>       mTimerClock;
+    fs::path                     mSettingsFilePath;
+    std::shared_ptr<Settings>    mSettings;      
+    std::shared_ptr<Timer>       mTimer;
 
     auto CreateGraphicsResources  () -> bool;    
     auto DiscardGraphicsResources () -> void;
@@ -99,8 +99,8 @@ class ImpulseApp : public D2DApp
 
 public:
     ImpulseApp ()
-        : mSettings   (std::make_shared<Impulse::Settings>())
-        , mTimerClock (std::make_shared<Impulse::Timer>())
+        : mSettings (std::make_shared<Settings>())
+        , mTimer    (std::make_shared<Timer>())
     {
         auto appData = GetAppDataPath() / L"Impulse";
         fs::create_directory(appData);

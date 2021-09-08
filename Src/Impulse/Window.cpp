@@ -23,7 +23,7 @@ auto Window::Dispatch (UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
         return 0;
 
     case WM_SIZE:
-        Resize(static_cast<UINT>(wParam), static_cast<UINT>(lParam));
+        Resize(static_cast<UINT32>(LOWORD(lParam)), static_cast<UINT32>(HIWORD(lParam)));
         return 0;
 
     case WM_MOVE:
@@ -85,14 +85,7 @@ auto Window::Move (int x, int y) -> void
 
 auto Window::DpiChanged () -> void
 {
-    auto dpi = GetDpiForWindow(mWindowHandle);
-    if (dpi == 0)
-    {
-        spdlog::warn("GetDpiForWindow() failed, using default dpi value (96)");
-        dpi = 96;
-    }
-
-    mDpi = dpi;
+    const auto dpi = UpdateDpi();
     OnDpiChanged(dpi);
 }
 
@@ -164,6 +157,19 @@ auto Window::WindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     return DefWindowProcW(hWnd, message, wParam, lParam);
 }
 
+auto Window::UpdateDpi () -> float
+{
+    auto dpi = GetDpiForWindow(mWindowHandle);
+    if (dpi == 0)
+    {
+        spdlog::warn("GetDpiForWindow() failed, using default dpi value (96)");
+        dpi = 96;
+    }
+
+    mDpi = dpi;
+    return dpi;
+}
+
 auto Window::Init (Window::Desc desc) -> bool
 {
     auto hInstance = desc.instanceHandle != nullptr ? desc.instanceHandle : GetModuleHandleW(nullptr);
@@ -213,6 +219,8 @@ auto Window::Init (Window::Desc desc) -> bool
         spdlog::error("CreateWindowExW() failed: {}", GetLastErrorMessage());
         return false;
     }
+
+    UpdateDpi();
 
     if (!desc.invisible)
     {

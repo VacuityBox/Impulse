@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include <d2d1_1.h>
+#include <d2d1_3.h>
 #include <dwrite.h>
 #include <wrl.h>
 
@@ -26,7 +26,7 @@ public:
         D2D_SIZE_F          size                 = D2D1::SizeF();
         const WCHAR*        text                 = L"StaticText";
 
-        const WCHAR*        font                 = L"Segoe UI";
+        const WCHAR*        fontName             = L"Segoe UI";
         FLOAT               fontSize             = 11.0f;
         DWRITE_FONT_WEIGHT  fontWeight           = DWRITE_FONT_WEIGHT_NORMAL;
         DWRITE_FONT_STYLE   fontStyle            = DWRITE_FONT_STYLE_NORMAL;
@@ -47,17 +47,23 @@ public:
         bool                intelOutline         = true; // when state == [hover, active]
         bool                roundedCorners       = true;
         float               roundedRadius        = 4.0f;
+
+        int                 svg0                 = 0;
+        int                 svg1                 = 0;
     };
 
 private:
-    D2D_POINT_2F mPosition = D2D1::Point2F();
-    D2D_SIZE_F   mSize     = D2D1::SizeF();
-    std::wstring mText;
-    float        mFontSize = 11.f;
+    D2D_POINT_2F        mPosition             = D2D1::Point2F();
+    D2D_SIZE_F          mSize                 = D2D1::SizeF();
+    std::wstring        mText                 = L"";
+
+    bool                mForceOutline         = false;
+    bool                mIntelOutline         = true;
+    bool                mRoundedCorners       = true;
+    float               mRoundedRadius        = 1.0f;
+    int                 mIconId               = 0;
 
     ComPtr<IDWriteTextFormat>    mTextFormat;
-    ComPtr<IDWriteTextLayout>    mTextLayout;
-
     ComPtr<ID2D1SolidColorBrush> mDefaultTextBrush;
     ComPtr<ID2D1SolidColorBrush> mDefaultOutlineBrush;
     ComPtr<ID2D1SolidColorBrush> mHoverTextBrush;
@@ -68,51 +74,61 @@ private:
     ComPtr<ID2D1SolidColorBrush> mFocusOutlineBrush;
     ComPtr<ID2D1SolidColorBrush> mDisabledTextBrush;
     ComPtr<ID2D1SolidColorBrush> mDisabledOutlineBrush;
+    ComPtr<ID2D1SvgDocument>     mSvgIcon0;
+    ComPtr<ID2D1SvgDocument>     mSvgIcon1;
 
-    bool  mForceOutline   = false;
-    bool  mIntelOutline   = true;
-    bool  mRoundedCorners = true;
-    float mRoundedRadius  = 1.0f;
+    ID2D1DeviceContext* mD2DDeviceContext = nullptr;
+    IDWriteFactory*     mDWriteFactory    = nullptr;
+
+private:
+    auto CreateBrushes     (const Button::Desc& desc) -> bool;
+    auto CreateTextFormats (const Button::Desc& desc) -> bool;
+    auto CrateSvg          (const Button::Desc& desc) -> bool;
+
+    auto CreateBrush      (D2D_COLOR_F color) -> ComPtr<ID2D1SolidColorBrush>;
+    auto CreateTextFormat (
+        const WCHAR*        fontName,
+        FLOAT               fontSize,
+        DWRITE_FONT_WEIGHT  fontWeight,
+        DWRITE_FONT_STYLE   fontStyle,
+        DWRITE_FONT_STRETCH fontStretch
+    ) -> ComPtr<IDWriteTextFormat>;
+
 
 public:
     Button  () = default;
     ~Button () = default;
 
-    auto Position (float x, float y) { mPosition.x = x; mPosition.y = y; }
-    auto Size (float w, float h)
-    {
-        mSize.width  = w;
-        mSize.height = h;
-        mTextLayout->SetMaxWidth(w);
-        mTextLayout->SetMaxHeight(h);
-    }
+    auto Position (float x, float y)  { mPosition.x = x; mPosition.y = y; }
+    auto Size     (float w, float h)  { mSize.width  = w; mSize.height = h; }
+    auto Text     (std::wstring text) { mText = std::move(text); }
 
-    auto Text (std::wstring text, IDWriteFactory* pDWriteFactory)
-    {
-        const auto size = mTextLayout->GetFontSize();
+    auto SetIcon  (int id) { mIconId = id; }
 
-        mText = std::move(text);
-        
-        auto hr = pDWriteFactory->CreateTextLayout(
-            mText.c_str(),
-            mText.length(),
-            mTextFormat.Get(),
-            mSize.width,
-            mSize.height,
-            &mTextLayout
-        );
-        if (FAILED(hr))
+    auto FontSize (float size) -> bool
+    {
+        auto length   = static_cast<size_t>(mTextFormat->GetFontFamilyNameLength());
+        auto fontName = std::wstring(length + 1, '\0');
+        if (FAILED(mTextFormat->GetFontFamilyName(fontName.data(), fontName.length())))
         {
-            spdlog::error("CreateTextLayout() failed: {}", (hr));
-            return;
+            return false;
         }
 
-        mTextLayout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-        mTextLayout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-        mTextLayout->SetFontSize(mFontSize, DWRITE_TEXT_RANGE{0, static_cast<unsigned int>(mText.length())});
+        auto textFormat = CreateTextFormat(
+            fontName.c_str(),
+            size,
+            mTextFormat->GetFontWeight(),
+            mTextFormat->GetFontStyle(),
+            mTextFormat->GetFontStretch()
+        );
+        if (textFormat)
+        {
+            mTextFormat = textFormat;
+            return true;
+        }
+
+        return false;
     }
-    
-    auto FontSize (float size, IDWriteFactory* pDWriteFactory) -> bool;
 
     const auto& Text  () const { return mText; }
     const auto  Rect  () const
